@@ -1,0 +1,172 @@
+---
+title: "What RL Actually Does to a Model, and Where It's Heading"
+---
+
+Parts I to III asked what each method optimizes. This chapter asks what the optimization does to the
+model. Does RL teach a pretrained model anything new, or does it only make it more reliable at what it
+could already do? Does it generalize better or worse than supervised fine-tuning? What does it cost in
+diversity, and in forgetting? These questions became urgent with the reasoning models of 2025, and the
+evidence is genuinely mixed. The chapter presents it as a debate and keeps three kinds of claim apart:
+mathematical facts, findings that several groups have replicated, and claims that are recent or
+contested. Where the toy language can settle a mathematical point it does, and where it cannot, the
+chapter says so. The last section turns to the setting where the classical RL of the
+[first chapter](01-what-makes-a-problem-rl.qmd) returns in full: multi-turn, tool-using agents. It is
+date-stamped, because it is the part of the field that moves fastest.
+
+## Sharpening or new capability?
+
+**The finding.** Yue et al. compared reasoning models trained with RL on verifiable rewards (RLVR)
+against their own base models using pass@$k$, the probability that at least one of $k$ samples is
+correct. "RLVR-trained models outperform their base models at small $k$ (e.g., $k = 1$)", but "the base
+models achieve a higher pass@$k$ score when $k$ is large", and the reasoning paths of the RL models
+were already in the base models' sampling distribution; they conclude that the reasoning abilities
+"originate from and are bounded by the base model" [@yue2025does]. On this reading, RLVR mostly
+*sharpens*: it moves probability onto good answers the base model could already sample, which helps
+when you get one try and hurts when you get many.
+
+**The counter-evidence.** Liu et al.'s ProRL trains much longer, with KL control, periodic resets of the
+reference policy and a diverse task suite, and reports that "RL-trained models consistently outperform
+base models across a wide range of pass@$k$ evaluations", including where the base model fails
+completely; the improvement correlates with the base model's competence on the task and with training
+duration [@liu2025prorl]. So the boundary may move with enough optimization and the right recipe, or
+the two papers may be measuring different regimes. As of October 2026 this is a **contested** question,
+and both papers should be read as reports about their settings.
+
+**What the mathematics says.** One part of the debate is not empirical. For a single problem with
+success probability $p$, pass@$k = 1 - (1-p)^k$ is increasing in $p$ for every $k$. So if RL raises the
+success rate on a problem, it raises pass@$k$ on that problem *at every $k$*. A crossover in which the
+RL model's pass@$k$ falls below the base model's at large $k$ is possible only if RL has *lowered* the
+success rate on some problems, enough to outweigh the gains on others. Sharpening by itself does not
+produce it; losing problems does.
+
+The toy language shows both halves (@fig-pass-at-k). With a fully expressive policy per prompt, the
+KL-regularized optimum $\pi^\star_\beta$ raises every prompt's success rate, and its pass@$k$ lies above
+the reference policy's at every $k$ for every $\beta$. To get a crossover the toy needs something that
+can make RL lower a problem's success rate. The simplest such thing is shared capacity: one
+distribution that must serve five tasks whose correct answers compete, with the tasks appearing in
+training at different frequencies. That is deliberately extreme (a real model sees the prompt and can
+specialize), but it isolates the mechanism. RL moves the shared distribution toward what is rewarded
+most often. Frequency-weighted pass@1 doubles, from 0.20 to 0.40, while the success rate on the three
+rarest tasks falls to zero, so pass@256 drops from 1.0 to 0.42 for the unregularized RL policy. The
+KL-regularized optima show the same pattern more gently as $\beta$ falls.
+
+![Left: on the default testbed, with a separate (fully expressive) policy for each prompt, the KL-regularized optimum raises pass@$k$ at every $k$. Middle: one shared distribution serving five tasks that appear in training with frequencies 40/30/15/10/5%; as optimization strengthens (smaller $\beta$, or RLOO with no KL), pass@1 rises but pass@$k$ at large $k$ falls below the base, a crossover. Right: why: success moves to the frequently rewarded task and vanishes on the others. All values exact.](../images/pass_at_k.png){#fig-pass-at-k}
+
+The toy cannot say which mechanism operates in real models: shared parameters, a narrowing of the
+reasoning strategies a model will try, or the KL-free, long optimization of recent recipes. What it
+pins down is the logical structure of the question. **A pass@$k$ crossover is evidence that RL lowered
+success on some problems, not merely that it sharpened the distribution on all of them.**
+
+## Generalization and memorization
+
+Chu et al. compare SFT and RL on two tasks built to test generalization: GeneralPoints, an arithmetic
+card game with rule variants, and V-IRL, a real-world navigation environment. Their abstract: "RL,
+especially when trained with an outcome-based reward, generalizes across both rule-based textual and
+visual variants", while "SFT, in contrast, tends to memorize training data and struggles to generalize
+out-of-distribution scenarios" [@chu2025sft]. Two qualifications travel with the result. SFT is not dispensable in their pipeline:
+"SFT stabilizes the model's output format, enabling subsequent RL to achieve its performance gains"
+[@chu2025sft]. And the tasks are specific environments, not general language-model training. Kirk et
+al. found the same direction for RLHF on text, "RLHF generalises better than SFT to new inputs,
+particularly as the distribution shift between train and test becomes larger" [@kirk2023understanding].
+Two groups, different settings, the same direction: this is the closest the section comes to a
+**replicated finding**, with the caveat that "generalizes better" was measured on particular kinds of
+distribution shift.
+
+A first-principles reading is available from the earlier chapters, and it is a reading, not a proof.
+SFT fits the forward KL to a fixed dataset of someone else's responses
+([keeping updates stable](03-keeping-updates-stable.qmd)), so it is rewarded for reproducing the
+dataset's surface. RL is rewarded only for outcomes, on the model's own samples
+([the first chapter](01-what-makes-a-problem-rl.qmd)), which is the DAgger remedy for imitation's
+distribution shift ([the LLM-as-policy chapter](04-the-llm-as-a-policy.qmd)).
+
+## Forgetting
+
+Shenfeld, Pari and Agrawal ask why online RL seems to forget less of a model's prior abilities than
+SFT when both learn a new task to the same level. Their answer, "RL's Razor": forgetting is predicted
+by "the KL-divergence between the fine-tuned and base policy evaluated on the new task", and
+"on-policy RL is implicitly biased towards KL-minimal solutions among the many that solve the new
+task, whereas SFT can converge to distributions arbitrarily far from the base model" [@shenfeld2025razor].
+This fits the structure of the book's methods. An on-policy method moves probability mass among
+responses the current policy already produces, reweighting them, so the solution it finds is near
+where it started. SFT moves the policy toward whatever distribution the labels came from, however far
+away. The finding is recent (2025) and from one group, so it belongs with the **recent claims**; its
+mechanism is consistent with the mathematics of the earlier chapters.
+
+## Diversity collapse
+
+The most consistently reported cost of RL is diversity. Kirk et al. found that "RLHF significantly
+reduces output diversity compared to SFT across a variety of measures" [@kirk2023understanding].
+Korbak et al. opened their argument for KL-regularized RL with the observation that standard RL
+fine-tuning "leads to distribution collapse" [@korbak2022rl]. Yue et al.'s narrowing is a version of
+the same thing seen through pass@$k$.
+
+The book has met collapse three times, and each time it had an identifiable cause. Unregularized
+REINFORCE collapsed onto a single correct answer while SFT kept the expert's spread
+([the first chapter](01-what-makes-a-problem-rl.qmd)). Iterated hard filtering, the STaR/ReST pattern,
+drove the entropy among correct answers to zero, well past even $\pi_{\text{ref}}$ restricted to correct
+answers ([imitating a better distribution](09-imitating-a-better-distribution.qmd)). And the reverse KL
+in the RL objective is mode-seeking ([keeping updates stable](03-keeping-updates-stable.qmd)). The
+mathematical fact underneath all three: the KL-regularized optimum $\pi^\star$ keeps every response
+$\pi_{\text{ref}}$ supports, in the same relative proportions within each reward level
+([the shared-target chapter](06-the-shared-target.qmd)). Collapse comes from removing the KL term, from
+optimizing past the point where it binds, from finite-sample feedback loops, or from a policy too
+constrained to represent $\pi^\star$. It is not something the objective requires.
+
+| Claim | Kind of evidence | Status as of October 2026 |
+|---|---|---|
+| Per problem, raising the success rate raises pass@$k$ at every $k$ | mathematical fact | settled |
+| The KL-regularized optimum keeps $\pi_{\text{ref}}$'s support and proportions within each reward level | mathematical fact | settled |
+| RL reduces output diversity relative to SFT | several groups (Kirk et al.; Korbak et al.; Yue et al.'s narrowing) | replicated |
+| RL generalizes better than SFT under distribution shift | two groups, different settings (Chu et al.; Kirk et al.) | replicated, setting-dependent |
+| RLVR does not expand what the base model can solve | Yue et al. vs. ProRL | contested |
+| On-policy RL forgets less because it finds KL-minimal solutions | Shenfeld et al. | recent, single group |
+
+## Where full RL comes back: multi-turn and agentic RL
+
+*This section describes the field as of October 2026 and is deliberately short.*
+
+The [chapter on the LLM as a policy](04-the-llm-as-a-policy.qmd) explained why LLM post-training could
+drop so much of classical RL: deterministic transitions, a single reward at the end, a bandit over
+responses. Every one of those properties fails for an agent. When a model calls tools, browses, runs
+code or talks to a user over several turns, the next state depends on the environment's response,
+which is stochastic and outside the model's control. Rewards arrive after many turns, and the turn that
+earned them may be far back. The [first chapter's](01-what-makes-a-problem-rl.qmd) third property,
+delayed consequences, returns at the level of turns rather than tokens, and with it the machinery of
+values, bootstrapping and credit assignment.
+
+::: {.callout-important title="Classical lineage — this is the full MDP again"}
+Multi-turn agents restore everything the bandit view of single responses removed: stochastic
+transitions, rewards delayed across decisions, and the need to estimate the value of intermediate
+states. Values, bootstrapping and temporal credit assignment, the classical tools of the
+[first chapter](01-what-makes-a-problem-rl.qmd), apply again, at the level of turns.
+:::
+
+The literature shows that machinery coming back. ArCHer argues that "most single-turn RL methods
+cannot endow LLMs with the ability to intelligently seek information over multiple turns, perform
+credit assignment, or reason about their past actions", and pairs an off-policy, value-based learner
+over whole utterances with a token-level policy inside each turn [@zhou2024archer]: a critic again,
+now at the level where consequences are delayed. RefGRPO finds that agents mis-assess their own outputs
+after seeing environment feedback and adds a calibration bonus for their self-assessment
+[@zhu2026reflection], a link to the [calibration chapter](10-rewarding-calibration.qmd). And reward
+hacking takes environmental forms, such as exiting a test harness early or skipping tests in agentic
+coding [@baker2025monitoring].
+
+Systems matter more here too. Generation dominates the cost of RL for language models, and agentic
+rollouts are longer and slower still, so practical systems decouple generation from learning and train
+on slightly stale samples. Noukhovitch et al. study how much off-policyness that tolerates, and find
+online DPO the most robust [@noukhovitch2025asynchronous]. This book does not cover rollout engines or
+weight synchronization; it is enough to know that "on-policy" in an agentic system usually means "a
+few versions behind", and that the importance ratios of the
+[chapter on stable updates](03-keeping-updates-stable.qmd) are what make that workable.
+
+## Connections
+
+- [Keeping Updates Stable](03-keeping-updates-stable.qmd) explains the forward- vs. reverse-KL contrast
+  behind diversity collapse and behind the generalization and forgetting findings.
+- [The Shared Target, and RLHF with PPO](06-the-shared-target.qmd) supplies the mathematical fact that
+  the regularized optimum does not collapse, so that collapse can be traced to what a recipe removed.
+- [Learning by Imitating a Better Distribution](09-imitating-a-better-distribution.qmd) produced the
+  clearest collapse in the book, from iterated filtering, the same self-training loop many reasoning
+  recipes use.
+- [The LLM as a Policy](04-the-llm-as-a-policy.qmd) listed which parts of classical RL LLM training
+  could drop; the agentic section of this chapter is where they come back.

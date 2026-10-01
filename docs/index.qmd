@@ -1,0 +1,52 @@
+---
+image: images/social_preview.png
+---
+
+# Welcome {.unnumbered}
+
+Many machine-learning engineers learned reinforcement learning as a separate subject, with its
+own vocabulary: MDPs, Bellman equations, Q-learning, bandits. Then language-model post-training
+adopted "RL-like" methods under a stream of new names: RLHF, PPO, reward models, DPO, IPO, KTO,
+RLAIF, RLVR, GRPO, DAPO, GSPO, on-policy distillation, and most recently vendor-coined methods
+whose mechanism is not even public. It is possible to use all of them without being able to say,
+from first principles, what RL is, what each method is doing, and how the methods actually differ.
+
+This book is about that gap. Its argument fits in three sentences. RL differs from supervised
+learning in *where the data comes from* and *what the feedback says*, not in the model or the
+loss. The policy gradient is a weighted maximum-likelihood gradient on samples the learner chose
+to generate, so almost every post-training method is a choice of *which samples* and *what weight
+on each*. And nearly all of them aim at the same target: the reference policy, tilted by
+$\exp(r/\beta)$.
+
+Three commitments shape everything here:
+
+1. **Derive, don't define.** Every method appears after the problem it solves and the
+   assumption it changes, with a *method card* that places it on the same eight axes as every
+   other method.
+2. **Name the classical idea.** When an LLM method reuses something from classical RL (a Monte
+   Carlo baseline, a trust region, behavior cloning, reward-weighted regression) the book says
+   so explicitly.
+3. **Check it exactly.** Every experiment runs on a toy language small enough to enumerate (625
+   possible responses), where the optimal policy, every KL and the true policy gradient can be
+   computed exactly. Methods are measured against ground truth, not eyeballed.
+
+![Every method in the book, trained on the toy language and measured against the exact optimum $\pi^\star$ of the KL-regularized objective. They aim at the same distribution; what separates them is the estimator (gradient noise, finite or offline data) and, for GRPO as published, an implementation detail that changes the target. The full figure and its discussion are in [The Shared Target](chapters/06-the-shared-target.qmd).](images/all_roads_to_pi_star.png){#fig-all-roads-preview}
+
+## How this book is organized
+
+[The map](chapters/00-map.qmd) shows the whole argument on one page. **Part I** builds RL from first
+principles: what makes a problem RL, the policy gradient as weighted maximum likelihood, and the trust
+regions and KL penalties that keep it stable. **Part II** casts language generation as an RL problem and
+asks where its rewards come from and how they break. **Part III** derives the methods as routes to one
+target: RLHF with PPO, direct preference methods, critic-free policy gradients, learning by imitating a
+better distribution, and rewards for calibration, including what is and is not known about RLCD.
+**Part IV** asks what RL actually does to a model and ends with a decision guide, the
+[unified table](unified-table.qmd) and a five-minute recipe for placing a new paper on the map.
+
+Every chapter derives before it defines, gives each method a *method card* with the same eight fields,
+names the classical RL idea a method reuses, and separates mathematical facts from replicated findings
+and from recent or contested claims, which are dated (as of October 2026). The code for every
+experiment is in the repository's `src/rl4llm/` package, and every derivation that can be checked
+numerically is checked in its test suite.
+
+Start at [the map](chapters/00-map.qmd).

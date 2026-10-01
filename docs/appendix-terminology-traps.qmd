@@ -1,0 +1,66 @@
+---
+title: "Terminology Traps"
+---
+
+Several words in this field are used in more than one sense, and several methods are called by names
+that suggest more (or less) than they are. Each trap below is stated, then corrected, with the chapter
+where the correction is derived.
+
+**"RLHF" names a pipeline, not an algorithm.** Supervised fine-tuning, a reward model fit to human
+comparisons, then RL against it (usually PPO) with a KL penalty to the SFT model. Replace any stage and
+it is still called RLHF. ([The Shared Target, and RLHF with PPO](chapters/06-the-shared-target.qmd))
+
+**"PPO" in LLM papers is not quite the PPO of the original paper.** Original PPO already had a
+KL-penalty *variant*, but its KL was to $\pi_{\text{old}}$, the policy that generated the batch: a soft
+trust region. LLM "PPO" adds a KL to a *fixed* reference policy $\pi_{\text{ref}}$, usually folded into the
+per-token reward, which changes the objective and gives it the closed-form optimum $\pi^\star$.
+([Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd))
+
+**DPO is not RL in the sense of sampling and rewarding, but it targets an RL optimum.** It never samples
+from the policy and never evaluates a reward during training; with infinite data its minimizer is
+exactly the KL-regularized optimum that RLHF aims at. Which sense matters depends on the question.
+([Direct Preference Methods](chapters/07-direct-preference-methods.qmd))
+
+**"On-policy" usually means "approximately on-policy".** PPO, GRPO and their variants reuse each batch
+for several updates, and asynchronous systems train on samples a few versions old. Importance ratios and
+clipping are what make that workable. ([Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd),
+[What RL Actually Does to a Model](chapters/11-what-rl-does-to-a-model.qmd))
+
+**"Offline" and "off-policy" are different.** Off-policy methods learn from samples of a different
+policy, usually correcting with importance weights. Offline methods learn from a fixed dataset and never
+collect more. DPO is offline; PPO is slightly off-policy; online DPO is neither.
+([Direct Preference Methods](chapters/07-direct-preference-methods.qmd))
+
+**"Reward model", "verifier", "judge" and "critic" are four different things.** A reward model is a
+network trained to output a score; a verifier is a rule or program that checks correctness; a judge is a
+general model prompted to compare or grade; a critic is a value function trained during RL to predict
+future reward from a partial response, used as a baseline. The first three produce rewards; the fourth
+estimates their expectation. ([Where Rewards Come From](chapters/05-rewards.qmd))
+
+**Reward, return, value and advantage are four different quantities.** A reward scores one step or one
+response; the return sums future rewards; a value is the *expected* return from a state; an advantage is
+how much better an action is than the policy's average in that state.
+([What Makes a Problem RL](chapters/01-what-makes-a-problem-rl.qmd))
+
+**"KL penalty" does not say which KL, or how it is implemented.** Forward and reverse KL ask for different
+things (mass-covering vs mode-seeking), and a KL estimator's implementation decides which one is actually
+regularized: "$k_1$ in the reward" follows the reverse KL, "$k_3$ as a loss" follows the forward KL.
+([Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd))
+
+**"Unbiased" is about a specific quantity.** The $k_3$ estimator is an unbiased estimate of the KL's
+*value* under on-policy samples; its gradient as a loss is not the gradient of that KL. A leave-one-out
+baseline leaves the policy gradient unbiased; the group mean including the sample itself shrinks it.
+([Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd), [Policy Gradients](chapters/02-policy-gradients.qmd))
+
+**"Group normalization" is not just variance reduction.** Dividing each prompt's advantages by their
+standard deviation reweights prompts by difficulty and weakens the KL relative to the reward; it changes
+the objective. ([Policy Gradients Without a Critic](chapters/08-policy-gradients-without-a-critic.qmd))
+
+**"Calibrated" is a property of a model on a distribution.** A model can be calibrated when results are
+pooled and miscalibrated within every slice, as the independent evaluation of Jev found.
+([Rewarding Calibration](chapters/10-rewarding-calibration.qmd))
+
+**"RLCD" names two unrelated methods.** Reinforcement Learning from Contrastive Distillation (2023)
+builds preference pairs from contrasting prompts; Reinforcement Learning for Calibrated Decisions (2026)
+is TypeSafe AI's undisclosed training method for calibrated probabilities.
+([Rewarding Calibration](chapters/10-rewarding-calibration.qmd))

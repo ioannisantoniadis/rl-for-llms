@@ -1,0 +1,52 @@
+---
+title: "Further Reading"
+---
+
+Short and annotated. The chapters cite everything they use; these are the sources most worth reading
+in full.
+
+## Classical RL
+
+- Richard Sutton and Andrew Barto, *Reinforcement Learning: An Introduction*, 2nd ed.
+  [@sutton2018reinforcement]. Chapter 2 (bandits, evaluative feedback), chapter 13 (policy gradients)
+  and section 11.3 (the deadly triad) are the background this book assumes.
+- John Schulman et al. on TRPO, GAE and PPO [@schulman2015trust; @schulman2015gae;
+  @schulman2017proximal]: three short papers that define the policy-gradient machinery LLM training
+  still uses. Schulman's note on approximating KL divergence [@schulman2020approximating] is two pages
+  and explains $k_1$, $k_2$ and $k_3$.
+- Sergey Levine, "Reinforcement Learning and Control as Probabilistic Inference"
+  [@levine2018reinforcement], for the inference view behind the closed-form optimum.
+
+## The RLHF lineage
+
+- Christiano et al. [@christiano2017deep], Ziegler et al. [@ziegler2019finetuning], Stiennon et al.
+  [@stiennon2020learning] and Ouyang et al. [@ouyang2022training], in that order: the recipe as it was
+  built.
+- Korbak, Perez and Buckley [@korbak2022rl]: why the KL penalty makes the objective a posterior.
+- Gao, Schulman and Hilton [@gao2022scaling]: overoptimization measured.
+
+## Beyond PPO
+
+- Rafailov et al. [@rafailov2023direct] for DPO, and Azar et al. [@azar2023general] for the family it
+  belongs to and its overfitting failure mode.
+- Ahmadian et al. [@ahmadian2024back]: the case for simple REINFORCE-style estimators in RLHF.
+- Shao et al. [@shao2024deepseekmath], section 5.2: the unified view of SFT, rejection sampling, DPO,
+  PPO and GRPO by data source, reward and gradient coefficient, which this book's $(q, w)$ form follows.
+- Liu et al. [@liu2025understanding] and Yu et al. [@yu2025dapo]: what GRPO's choices do, and what to
+  change.
+
+## What RL does to a model
+
+- Yue et al. [@yue2025does] and Liu et al. [@liu2025prorl] read together, as the two sides of the
+  pass@$k$ debate.
+- Shenfeld, Pari and Agrawal [@shenfeld2025razor] on forgetting, and Kirk et al.
+  [@kirk2023understanding] on generalization and diversity.
+
+## This author's other books
+
+- [loss-functions-lab](https://ioannisantoniadis.github.io/loss-functions-lab/): where Bradley–Terry,
+  the DPO derivation and proper scoring rules are derived as losses.
+- [modern-ai-systems-and-methods](https://ioannisantoniadis.github.io/modern-ai-systems-and-methods/):
+  the short overview of RL, bandits and generative AI that this book expands.
+- [transformer-atlas](https://github.com/ioannisantoniadis/transformer-atlas): the architectures, which
+  this book treats as given.

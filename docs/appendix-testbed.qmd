@@ -1,0 +1,77 @@
+---
+title: "The Toy Testbed"
+---
+
+Almost every experiment in this book runs on one small environment, chosen so that the theory can be
+checked *exactly* rather than eyeballed. This appendix documents it once. The code is in
+`src/rl4llm/toy_language.py`; the tests that check the book's derivations against it are in
+`tests/`.
+
+## The enumerable language
+
+- **Vocabulary and length.** Five tokens (shown as `a`–`e`) and responses of exactly four tokens, so
+  there are $5^4 = 625$ possible responses. That is small enough to enumerate, so any expectation over
+  responses is an exact sum.
+- **Prompts.** Four prompts (contexts). Each has a *target* in $\{0,\dots,4\}$.
+- **Verifiable reward.** A response is correct for a prompt if its tokens sum to the prompt's target,
+  modulo 5: $r(x,y) = \mathbb{1}[\sum_t y_t \equiv \text{target}(x) \bmod 5]$. This is the toy version
+  of a math-answer checker.
+- **The policy** is *prefix-tabular*: a separate softmax over the next token for every
+  (prompt, prefix) pair, $1 + 5 + 25 + 125 = 156$ prefixes per prompt. It is still an autoregressive,
+  token-level policy, so per-token ratios, per-token KLs and per-token advantages mean what they mean
+  for an LLM. It is also fully expressive: any distribution over the 625 responses can be represented
+  exactly. That is deliberate. When a method fails to reach $\pi^\star$, the reason is the method,
+  never the architecture's capacity.
+
+## The reference policy
+
+$\pi_{\text{ref}}$ is "pretrained" by maximum likelihood. Each prompt has its own Markov chain over
+tokens (initial distribution and transition matrix drawn from a Dirichlet with concentration 0.3);
+4,000 responses per prompt are sampled from it; and the prefix-tabular model is fit to that corpus by
+counting, with additive smoothing of 0.5 (the MAP estimate under a symmetric Dirichlet prior). So
+$\pi_{\text{ref}}$ has a genuine, non-uniform prior, is not the corpus distribution itself, and gives
+every response nonzero probability (which DPO's identifiability needs).
+
+The seed (1) and the per-prompt targets (1, 2, 0, 0) were chosen by scanning seeds so that the four
+prompts span a range of difficulty: under $\pi_{\text{ref}}$ they are answered correctly with probability
+0.017, 0.187, 0.707 and 0.439. Experiments about difficulty (zero-signal groups, group normalization,
+the slow start of RL on hard prompts) need a hard and an easy prompt. `default_testbed()` returns this
+configuration; changing it changes every figure.
+
+## What can be computed exactly
+
+| Quantity | How |
+|---|---|
+| $\pi_\theta(y\mid x)$ for every response | chain rule over the prefix table |
+| $\pi^\star = \pi_{\text{ref}}e^{r/\beta}/Z$, and $Z$ | closed form, `optimal_logprobs` |
+| $D_{\mathrm{KL}}(\pi\|\pi_{\text{ref}})$, $D_{\mathrm{KL}}(\pi\|\pi^\star)$, expected reward, entropy, pass@$k$ | sums over 625 responses, `rl4llm.metrics` |
+| the true policy gradient | $\sum_y \pi(y)\,w(y)\,\nabla\log\pi(y)$ over all responses |
+| the value function $V^\pi(s_t)$ at every prefix | marginalizing the exact joint over unseen suffixes, `prefix_values` |
+| the expected gradient of any KL-penalty implementation | `rl4llm.kl_penalties` |
+| the exact best-of-$n$ distribution | order statistics over the sorted responses, `best_of_n_logprobs` |
+
+Every method in `rl4llm.methods` ends in the same call, `grad_log_likelihood(lang, logits, prompts,
+responses, weights)`: the $(q, w)$ form of the [policy-gradient chapter](chapters/02-policy-gradients.qmd),
+made literal. Methods differ only in which responses they pass and with what weights. All of them use
+the same Adam optimizer, so method comparisons are not optimizer comparisons.
+
+## Variants
+
+Some chapters need something the default language lacks.
+
+| Variant | Used in | What changes |
+|---|---|---|
+| variable length (`eos_testbed`) | [critic-free](chapters/08-policy-gradients-without-a-critic.qmd) | 6 positions, token `e` ends the response, so lengths vary from 1 to 6; reward on the content before EOS |
+| learned proxy reward (`reward_model.py`) | [rewards](chapters/05-rewards.qmd) | a Bradley–Terry model, linear in per-position token features (so misspecified), fit to simulated preference pairs |
+| shared-feature policy (`loglinear.py`) | [direct preference](chapters/07-direct-preference-methods.qmd) | a log-linear policy over per-position token features, where similar responses share parameters |
+| answer + confidence task (`calibration.py`) | [calibration](chapters/10-rewarding-calibration.qmd) | the last token is a stated confidence; answers succeed at random with hidden probabilities |
+| one shared distribution for several tasks | [what RL does](chapters/11-what-rl-does-to-a-model.qmd) | a single policy serving five tasks with competing correct answers |
+
+## What the testbed cannot show
+
+It is small on purpose, and some phenomena need scale. Responses are four tokens long, so per-token
+credit has little room to matter (the dense-reward advantage of on-policy distillation was only about
+twofold here, and did not grow with length between two and six tokens). The tabular policy has no
+generalization across prompts unless a variant adds it. Nothing about wall-clock cost, memory or
+distributed training carries over. Where a chapter's claim depends on any of these, the chapter says
+the toy cannot settle it.

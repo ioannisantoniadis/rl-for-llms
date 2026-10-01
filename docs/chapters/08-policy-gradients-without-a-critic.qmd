@@ -1,0 +1,283 @@
+---
+title: "Policy Gradients Without a Critic"
+---
+
+PPO-based RLHF keeps a second large network, the critic, whose only job is to supply baselines.
+The [chapter on the LLM as a policy](04-the-llm-as-a-policy.qmd) argued that with one reward per
+response the problem behaves like a contextual bandit, in which a per-token value function has
+little to add, and the [policy-gradient chapter](02-policy-gradients.qmd) measured that the exact
+per-token critic barely beat a per-prompt baseline on the toy language. This chapter follows the
+methods that drew the obvious conclusion: drop the critic, sample several responses per prompt,
+and build the baseline from the group. That is REINFORCE with a Monte Carlo baseline, the oldest
+policy-gradient idea there is, and it powered the reasoning models of 2025 under the name GRPO. The
+second half of the chapter takes apart what GRPO's particular choices do, one bias at a time,
+because each of the 2025 follow-ups (Dr. GRPO, DAPO, GSPO, CISPO) is a response to exactly one of
+them.
+
+## The problem
+
+Estimate the policy gradient of the KL-regularized (or plain) reward objective with low enough
+variance to train on, using only the policy, a frozen reference and a reward function: no learned
+value model. The unifying observation of this chapter is the one the
+[policy-gradient chapter](02-policy-gradients.qmd) derived: **any baseline that does not depend on
+the response it is subtracted from leaves the gradient unbiased**, and other samples for the same
+prompt are such a baseline. A group-normalized advantage is a Monte Carlo baseline, and a group
+whose rewards are all equal carries exactly zero signal.
+
+## Back to basics: REINFORCE and RLOO
+
+Ahmadian et al. revisited the simplest estimator for RLHF and argued that PPO's machinery solves
+problems LLM fine-tuning does not have: strong pretraining concentrates "probability mass ... on a
+few tokens at each generation step", and with rewards only at the end, "modeling partial sequences
+is an unnecessary undertaking" [@ahmadian2024back]. They model the whole response as one action and
+use the leave-one-out baseline of Kool et al. [@kool2019buy]:
+
+::: {.callout-note title="Definition — RLOO"}
+$$
+\nabla_\theta J \approx \frac{1}{G}\sum_{i=1}^{G}\Big[r(x,y_i) - \frac{1}{G-1}\sum_{j\ne i}r(x,y_j)\Big]\nabla_\theta\log\pi_\theta(y_i\mid x),\qquad y_1,\dots,y_G\sim\pi_\theta(\cdot\mid x).
+$$
+:::
+
+They report plain REINFORCE outperforming PPO, and RLOO outperforming PPO, DPO and RAFT, on their
+summarization and dialogue setups [@ahmadian2024back]. On the toy language RLOO reaches $\pi^\star$ as
+closely as PPO with a critic does (the [shared-target chapter's](06-the-shared-target.qmd) signature
+figure) at a fraction of the machinery.
+
+::: {.callout-tip title="Method card — RLOO"}
+| | |
+|---|---|
+| **Signal** | scalar reward per response (KL folded into the reward in RLHF use) |
+| **Samples from** ($q$) | $\pi_\theta$: $G$ fresh samples per prompt (on-policy) |
+| **Per-sample weight** ($w$) | $r_i$ minus the mean reward of the other $G-1$ samples |
+| **Stability** | the KL-shaped reward; no clip needed in the original |
+| **Credit granularity** | sequence level |
+| **Models in memory** | policy, reference, reward |
+| **Targets** | the KL-regularized objective; $\pi^\star$ |
+| **Classical lineage** | REINFORCE (Williams 1992) with a Monte Carlo leave-one-out baseline |
+:::
+
+**ReMax** uses a different free baseline: the reward of the *greedy* response. It exploits the
+three properties of RLHF the [LLM-as-policy chapter](04-the-llm-as-a-policy.qmd) quoted (fast
+simulation, deterministic transitions, trajectory-level rewards), sets
+$b(x) = r(x,\bar y)$ with $\bar y$ the greedily decoded response, and reports about 46% GPU-memory
+savings over PPO for a 7B model by dropping the value model [@li2023remax]. The greedy reward does
+not depend on the sampled response, so the estimator stays unbiased; whether it is a *good*
+baseline depends on how representative the greedy response is.
+
+::: {.callout-tip title="Method card — ReMax"}
+| | |
+|---|---|
+| **Signal** | scalar reward per response |
+| **Samples from** ($q$) | $\pi_\theta$: one sampled response per prompt, plus one greedy decode |
+| **Per-sample weight** ($w$) | $r(x,y) - r(x,\bar y_{\text{greedy}})$ |
+| **Stability** | KL to the reference in the reward |
+| **Credit granularity** | sequence level |
+| **Models in memory** | policy, reference, reward |
+| **Targets** | the KL-regularized objective |
+| **Classical lineage** | REINFORCE with the reward of a greedy rollout as baseline: self-critical sequence training [@rennie2017self] |
+:::
+
+## GRPO
+
+Group Relative Policy Optimization combines a group baseline with PPO's trust region
+[@shao2024deepseekmath]. For each prompt it samples $G$ outputs from $\pi_{\text{old}}$ and maximizes
+
+::: {.callout-note title="Definition — GRPO (as published)"}
+$$
+\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}\Big\{\min\big[\rho_{i,t}\hat A_{i,t},\ \mathrm{clip}(\rho_{i,t},1-\epsilon,1+\epsilon)\hat A_{i,t}\big] - \beta\,\mathbb{D}_{\mathrm{KL}}[\pi_\theta\|\pi_{\text{ref}}]\Big\},
+\qquad
+\hat A_{i,t} = \frac{r_i - \mathrm{mean}(\mathbf r)}{\mathrm{std}(\mathbf r)},
+$$
+with the per-token KL estimated by $k_3 = \frac{\pi_{\text{ref}}}{\pi_\theta} - \log\frac{\pi_{\text{ref}}}{\pi_\theta} - 1$ and placed in the loss.
+:::
+
+Every ingredient is from earlier chapters: the group mean is a Monte Carlo baseline
+([policy gradients](02-policy-gradients.qmd)), the clip is PPO's trust region and the $k_3$ term is
+Schulman's estimator ([keeping updates stable](03-keeping-updates-stable.qmd)). DeepSeekMath used
+$G = 64$ samples per question and $\beta = 0.04$ [@shao2024deepseekmath, sec. 4.2]. GRPO is the RL
+algorithm of DeepSeek-R1-Zero, trained from a base model with rule-based accuracy and format
+rewards and no SFT, and of the reasoning stages of DeepSeek-R1 [@deepseek2025r1].
+
+::: {.callout-tip title="Method card — GRPO"}
+| | |
+|---|---|
+| **Signal** | scalar reward per response, often verifiable |
+| **Samples from** ($q$) | $\pi_{\text{old}}$: $G$ responses per prompt |
+| **Per-sample weight** ($w$) | group-normalized advantage $(r_i - \bar r)/\mathrm{std}(\mathbf r)$, broadcast to every token, times the clipped-ratio factor, divided by the response's length |
+| **Stability** | PPO-style clip; KL to $\pi_{\text{ref}}$ *in the loss*, via $k_3$ |
+| **Credit granularity** | sequence-level advantage broadcast to all tokens |
+| **Models in memory** | policy, reference (no critic; no reward model if the reward is verifiable) |
+| **Targets** | approximately the KL-regularized objective; with $k_3$ in the loss the regularizer is effectively the forward KL, so not exactly $\pi^\star$ |
+| **Classical lineage** | REINFORCE with a Monte Carlo baseline + PPO's trust region |
+:::
+
+::: {.callout-important title="Classical lineage — this is a Monte Carlo baseline"}
+A group-normalized advantage is the Monte Carlo baseline of the
+[policy-gradient chapter](02-policy-gradients.qmd), estimated from $G$ extra samples instead of a
+learned critic, and then rescaled. Everything new in GRPO is in the rescaling and the aggregation,
+and those are exactly what the 2025 papers took apart.
+:::
+
+## What the group statistics do
+
+@fig-grpo-biases measures three consequences of computing the baseline from the group.
+
+![Left: the probability that all $G$ rewards in a group are equal, which makes every advantage zero, against a prompt's success rate; dots are the toy language's four prompts under $\pi_{\text{ref}}$ at $G=8$ (the hard prompt yields no signal 87% of the time). Middle: each estimator's effective weight on a prompt's true gradient at $G=8$, measured from 1,500 sampled estimates at policies of varying difficulty. Leave-one-out is unbiased (weight 1), the group mean including the sample itself shrinks every prompt by $(G-1)/G$, and GRPO's division by the standard deviation weights very easy and very hard prompts up to about 40% more than medium ones. Right: GRPO on the variable-length toy language without a KL term; normalizing each response by its own length shortens correct answers much more, and lengthens wrong ones more, than a constant normalizer.](../images/grpo_biases.png){#fig-grpo-biases}
+
+**No variation, no signal.** With 0/1 rewards a group of $G$ samples is uninformative with
+probability $p^G + (1-p)^G$. At $G = 8$ that is 87% for the toy language's hard prompt (success rate
+0.02) and 6% for a medium one (left panel). This is the slow start of the hard prompt in the
+[first chapter](01-what-makes-a-problem-rl.qmd), now as a formula. Larger groups help, which is one
+reason DeepSeekMath used 64.
+
+**Standard-deviation normalization reweights prompts.** Dividing by the group's reward standard
+deviation is not a variance-reduction trick that leaves the expected gradient alone: it multiplies
+each prompt's gradient by a factor that depends on the prompt. The middle panel measures that factor.
+For RLOO it is 1 for every prompt (unbiased); for GRPO it ranges from about 1.9 for prompts near 50%
+success to about 2.7 near 0% or 100%, so the hardest and easiest prompts get up to 40% more weight.
+(It saturates instead of growing like $1/\mathrm{std}$, because at the extremes most groups have no
+variation at all and contribute nothing.) Liu et al. identify this "question-level difficulty bias":
+"questions with lower standard deviations (e.g., those that are too easy or too hard...)" receive
+"higher weights during policy updates" [@liu2025understanding]. It also changes the effective KL
+strength: GRPO's KL term is not divided by the standard deviation, so normalizing the advantages
+weakens the regularization relative to the reward, and on the toy language the same GRPO runs
+without the division end about half as far from $\pi^\star$
+([the shared-target chapter](06-the-shared-target.qmd)).
+
+**Per-response length normalization biases length.** The $1/|o_i|$ in GRPO's objective divides each
+response's summed per-token loss by its own length. For a positive advantage, a short response gets
+a larger per-token push than a long one with the same advantage; for a negative advantage, a long
+response is penalized less per token. Liu et al. describe the consequence: GRPO gives "greater
+gradient updates for shorter responses" among correct ones while "longer responses are penalized
+less" among incorrect ones [@liu2025understanding]. The right panel runs GRPO on a variable-length
+version of the toy language, where length is never rewarded ([the testbed appendix](../appendix-testbed.qmd)).
+With per-response normalization, correct answers shrink from about 4.5 tokens to 2.2, against 3.0
+with a constant normalizer, and wrong answers grow to 4.8 tokens against 4.6. In this toy the larger
+effect is on the correct answers; Liu et al. report the wrong answers' length "growing wildly" in
+real long chain-of-thought training, and that a constant normalizer substantially reduces it
+[@liu2025understanding].
+
+## The 2025 fixes, one bias each
+
+**Dr. GRPO** removes both normalizations: "we propose to simply remove the $\frac{1}{|o_i|}$ and std
+normalization terms" [@liu2025understanding], dividing instead by a constant such as the generation
+budget. What remains is REINFORCE with the group-mean baseline and PPO's clip: an unbiased (up to
+the $(G-1)/G$ factor of including each sample in its own baseline) policy gradient. The paper also
+reports that DeepSeek-V3-Base already produces self-reflection before any RL, a caution against
+attributing such behaviors to RL alone.
+
+::: {.callout-tip title="Method card — Dr. GRPO"}
+| | |
+|---|---|
+| **Signal** | scalar reward per response |
+| **Samples from** ($q$) | $\pi_{\text{old}}$: $G$ responses per prompt |
+| **Per-sample weight** ($w$) | $r_i - \bar r$ (no std division), clipped-ratio factor, constant normalizer |
+| **Stability** | PPO-style clip |
+| **Credit granularity** | sequence level |
+| **Models in memory** | policy (+ reference if a KL term is used) |
+| **Targets** | the reward objective, without GRPO's difficulty and length reweighting |
+| **Classical lineage** | REINFORCE with a Monte Carlo baseline + PPO clip |
+:::
+
+**DAPO** makes four changes, each aimed at one problem [@yu2025dapo]. *Clip-Higher* decouples the
+clip bounds ($\epsilon_{\text{low}} = 0.2$, $\epsilon_{\text{high}} = 0.28$), because the upper bound
+"restricts probability increases of exploration tokens" that start with low probability, which
+collapses entropy. *Dynamic sampling* filters out groups in which "all outputs receive the same
+reward", which have zero advantage and only shrink the effective batch: the left panel of
+@fig-grpo-biases is how often that happens. *Token-level policy-gradient loss* aggregates over all
+tokens in the batch instead of averaging per response first, so that long responses are not
+underweighted, the length issue of the right panel. *Overlong reward shaping* replaces the hard
+penalty for truncated responses with a graduated one. DAPO also removes the KL term, arguing that in
+long chain-of-thought training "the model distribution can diverge significantly from the initial
+model, thus this restriction is not necessary" [@yu2025dapo]. It reports 50 points on AIME 2024 with
+Qwen2.5-32B, against 47 for DeepSeek-R1-Zero-Qwen-32B with half the training steps.
+
+::: {.callout-tip title="Method card — DAPO"}
+| | |
+|---|---|
+| **Signal** | verifiable reward per response, with overlong shaping |
+| **Samples from** ($q$) | $\pi_{\text{old}}$, keeping only groups with non-zero reward variance (dynamic sampling) |
+| **Per-sample weight** ($w$) | group-normalized advantage, clipped-ratio factor with $\epsilon_{\text{high}} > \epsilon_{\text{low}}$, token-level aggregation |
+| **Stability** | asymmetric clip; no KL term |
+| **Credit granularity** | sequence-level advantage, token-level aggregation |
+| **Models in memory** | policy only (+ verifier) |
+| **Targets** | the reward objective itself, without a KL anchor |
+| **Classical lineage** | REINFORCE with a Monte Carlo baseline + an asymmetric trust region |
+:::
+
+**GSPO** moves the importance ratio and the clip from the token to the sequence. Zheng et al. argue
+that GRPO's token-level ratios are "ill-posed": importance sampling corrects a distribution only when
+averaged over many samples from it, while GRPO applies a single-sample ratio to each token, and the
+resulting noise accumulates over long responses [@zheng2025gspo]. GSPO uses the length-normalized
+sequence ratio $s_i(\theta) = \big(\pi_\theta(y_i\mid x)/\pi_{\text{old}}(y_i\mid x)\big)^{1/|y_i|}$,
+clipped at the sequence level, with the group-normalized advantage. The same unit of credit now
+appears in the reward, the advantage, the ratio and the clip. Its clip range is correspondingly two
+orders of magnitude smaller (about $3\times10^{-4}$ and $4\times10^{-4}$, against 0.2 and 0.27 for its
+token-level GRPO baseline), and the authors report that it stabilizes mixture-of-experts training
+without GRPO's "Routing Replay" [@zheng2025gspo].
+
+::: {.callout-tip title="Method card — GSPO"}
+| | |
+|---|---|
+| **Signal** | scalar reward per response |
+| **Samples from** ($q$) | $\pi_{\text{old}}$: $G$ responses per prompt |
+| **Per-sample weight** ($w$) | group-normalized advantage times a clipped *sequence-level* ratio $s_i(\theta)$ |
+| **Stability** | sequence-level clip |
+| **Credit granularity** | sequence level, throughout |
+| **Models in memory** | policy (+ reference if KL is used) |
+| **Targets** | the reward objective, with a sequence-level trust region |
+| **Classical lineage** | importance-sampled policy gradient with a trust region on the whole action (the bandit view) |
+:::
+
+**CISPO** keeps every token's gradient and clips its *weight* instead. The MiniMax-M1 team observed
+that rare "reflective" tokens such as "However", "Recheck", "Wait" and "Aha" start with low
+probability, get large ratios after the first update, and are then clipped out of the gradient by
+PPO and GRPO for the rest of the iteration [@minimax2025m1]. CISPO's objective is
+$\frac{1}{\sum_i|o_i|}\sum_i\sum_t \mathrm{sg}(\hat r_{i,t})\,\hat A_{i,t}\log\pi_\theta(o_{i,t}\mid\cdot)$
+with $\hat r = \mathrm{clip}(r, 1-\epsilon_{\text{low}}^{IS}, 1+\epsilon_{\text{high}}^{IS})$ and the stop-gradient
+$\mathrm{sg}$. In this book's terms CISPO is literally the $(q, w)$ form: $q$ is $\pi_{\text{old}}$, and
+$w$ is the advantage times a clipped importance weight that is never zeroed. The authors report a
+2× speedup over DAPO in a controlled comparison [@minimax2025m1].
+
+::: {.callout-tip title="Method card — CISPO"}
+| | |
+|---|---|
+| **Signal** | scalar reward per response |
+| **Samples from** ($q$) | $\pi_{\text{old}}$ |
+| **Per-sample weight** ($w$) | per token: $\mathrm{sg}(\mathrm{clip}(\rho_t))\cdot\hat A$: a bounded importance weight, never zero |
+| **Stability** | clipping of the importance weight (not of the update); token-level aggregation |
+| **Credit granularity** | sequence-level advantage, token-level weights |
+| **Models in memory** | policy (+ reference if KL is used) |
+| **Targets** | the reward objective |
+| **Classical lineage** | truncated importance sampling, as in IMPALA's V-trace off-policy correction [@espeholt2018impala], on a REINFORCE gradient |
+:::
+
+## Interpretation
+
+Read in sequence, the 2025 papers converge on something close to the textbook estimator. Dr. GRPO
+removes GRPO's normalizations, DAPO drops the KL term and aggregates per token, GSPO puts the whole
+trust region at the level of the response, CISPO turns the clip into a bounded importance weight.
+What remains is REINFORCE with a group baseline, a trust region at some granularity, and a set of
+data-side practices (filter uninformative groups, keep exploration alive). The critic did not come
+back, because with one reward per response a group of samples is a cheap, unbiased estimate of
+exactly what the critic was there to estimate.
+
+What this costs is the per-token credit a critic could in principle provide
+([the LLM-as-policy chapter](04-the-llm-as-a-policy.qmd)), and samples: $G$ responses per prompt,
+most of them wasted on prompts that are too easy or too hard. And several of the choices change the
+*target*, not only the variance: standard-deviation normalization reweights prompts, per-response
+normalization biases length, and $k_3$ in the loss regularizes a different divergence. Those are
+the details to check when two "GRPO" results disagree.
+
+## Connections
+
+- [Policy Gradients](02-policy-gradients.qmd) derived why a leave-one-out baseline is unbiased and
+  measured when baselines actually reduce variance; this chapter shows what GRPO's rescaling adds on
+  top.
+- [Keeping Updates Stable](03-keeping-updates-stable.qmd) supplied the clip that DAPO, GSPO and CISPO
+  each modify, and the analysis showing that GRPO's $k_3$-in-the-loss changes which divergence is
+  regularized.
+- [The Shared Target, and RLHF with PPO](06-the-shared-target.qmd) placed these methods on the routes
+  to $\pi^\star$: RLOO and GRPO with the KL in the reward reach it, GRPO as published does not.
+- [What RL Actually Does to a Model](11-what-rl-does-to-a-model.qmd) asks what these methods change
+  in a pretrained model, the debate that GRPO-trained reasoning models started.

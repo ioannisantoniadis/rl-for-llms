@@ -1,0 +1,38 @@
+---
+title: "The Unified Table"
+---
+
+Every method in the book on one page, one row per method, with the columns of the method cards
+plus what each method changed relative to the one it modifies. The rows are generated from a single
+data file (`scripts/method_data.py`), transcribed from the method cards in the chapters, so the
+table and the chapters say the same thing. Each method's name links to the chapter where its card
+is derived. "Undisclosed" marks fields of RLCD that TypeSafe AI has not published.
+
+Type in the box to filter rows (for example "verifiable", "offline", "critic", "token").
+
+```{=html}
+<input id="ut-filter" type="search" placeholder="Filter methods…" aria-label="Filter the unified table"
+       style="width:100%;max-width:420px;padding:6px 10px;margin:4px 0 12px;border:1px solid #d8d6cf;border-radius:4px;font:inherit">
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var box = document.getElementById("ut-filter");
+  var table = document.querySelector("main table");
+  if (!box || !table) return;
+  box.addEventListener("input", function () {
+    var q = box.value.toLowerCase();
+    table.querySelectorAll("tbody tr").forEach(function (tr) {
+      tr.style.display = tr.textContent.toLowerCase().indexOf(q) === -1 ? "none" : "";
+    });
+  });
+});
+</script>
+```
+
+::: {.column-page}
+{{< include includes/unified-table-full.md >}}
+:::
+
+Two reading notes. A method "targets $\pi^\star$" only in the idealized sense of the
+[shared-target chapter](chapters/06-the-shared-target.qmd): with enough data, a policy that can
+represent it, and the KL implemented as in that chapter. And "fully on-policy" methods are, in
+practice, slightly off-policy wherever they reuse a batch for several updates.

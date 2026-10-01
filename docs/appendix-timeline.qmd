@@ -1,0 +1,25 @@
+---
+title: "Timeline"
+---
+
+A dated lineage of the ideas in this book. Each year is the year of the primary source as recorded in
+the repository's `research-log.md` (the arXiv submission year, unless a venue year is the usual
+citation). The bars on the right count the methods of the [unified table](unified-table.qmd) by year.
+
+![The ideas in the book in date order, colored by family, from REINFORCE (1992) to RLCD (2026), and the number of named variants per year in the unified table. A few classical ideas (the policy gradient, trust regions, behavior cloning, reward-weighted regression) were recombined over three decades; the burst of named variants after 2023 followed the KL-regularized target and verifiable rewards, which made new routes to it cheap to try.](images/timeline.png){#fig-timeline}
+
+| Year | Milestone | Chapter |
+|---|---|---|
+| 1992 | REINFORCE [@williams1992simple] | [Policy Gradients](chapters/02-policy-gradients.qmd) |
+| 2007 | Reward-weighted regression [@peters2007reinforcement] | [Imitating a Better Distribution](chapters/09-imitating-a-better-distribution.qmd) |
+| 2011 | DAgger [@ross2011reduction] | [What Makes a Problem RL](chapters/01-what-makes-a-problem-rl.qmd) |
+| 2015 | TRPO [@schulman2015trust]; GAE [@schulman2015gae] | [Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd), [Policy Gradients](chapters/02-policy-gradients.qmd) |
+| 2016 | Sequence-level KD [@kim2016sequence]; REINFORCE for text generation [@ranzato2016sequence] | [Imitating](chapters/09-imitating-a-better-distribution.qmd), [The LLM as a Policy](chapters/04-the-llm-as-a-policy.qmd) |
+| 2017 | PPO [@schulman2017proximal]; RL from human preferences [@christiano2017deep]; KL-control [@jaques2017sequence] | [Stable Updates](chapters/03-keeping-updates-stable.qmd), [Rewards](chapters/05-rewards.qmd), [Shared Target](chapters/06-the-shared-target.qmd) |
+| 2019 | RLHF on language models [@ziegler2019finetuning]; AWR [@peng2019advantage] | [Shared Target](chapters/06-the-shared-target.qmd) |
+| 2020 | Learning to summarize from human feedback [@stiennon2020learning] | [Shared Target](chapters/06-the-shared-target.qmd) |
+| 2022 | InstructGPT [@ouyang2022training]; Constitutional AI [@bai2022constitutional]; STaR [@zelikman2022star]; RL as inference [@korbak2022rl]; RM overoptimization [@gao2022scaling] | several |
+| 2023 | DPO [@rafailov2023direct]; IPO [@azar2023general]; RAFT [@dong2023raft]; ReST [@gulcehre2023rest]; ReMax [@li2023remax]; GKD [@agarwal2023onpolicy]; process supervision [@lightman2023lets] | [Direct Preference](chapters/07-direct-preference-methods.qmd), [Imitating](chapters/09-imitating-a-better-distribution.qmd) |
+| 2024 | KTO [@ethayarajh2024kto]; ORPO [@hong2024orpo]; SimPO [@meng2024simpo]; online DPO [@guo2024direct]; RLOO for RLHF [@ahmadian2024back]; GRPO [@shao2024deepseekmath]; RLVR [@lambert2024tulu3] | [Direct Preference](chapters/07-direct-preference-methods.qmd), [Critic-free](chapters/08-policy-gradients-without-a-critic.qmd) |
+| 2025 | DeepSeek-R1 [@deepseek2025r1]; Dr. GRPO [@liu2025understanding]; DAPO [@yu2025dapo]; GSPO [@zheng2025gspo]; CISPO [@minimax2025m1]; on-policy distillation [@lu2025onpolicy]; RLCR [@damani2025beyond] | [Critic-free](chapters/08-policy-gradients-without-a-critic.qmd), [Imitating](chapters/09-imitating-a-better-distribution.qmd), [Calibration](chapters/10-rewarding-calibration.qmd) |
+| 2026 | RLCD (TypeSafe AI; mechanism undisclosed) [@typesafe2026jev] | [Calibration](chapters/10-rewarding-calibration.qmd) |

@@ -1,0 +1,74 @@
+project:
+  type: book
+  output-dir: _site
+
+book:
+  title: "Reinforcement Learning for Language Models, from First Principles"
+  subtitle: "Why RLHF, PPO, DPO, GRPO and their relatives are one idea with different approximations"
+  description: >-
+    What RL actually is, what each LLM post-training method is doing, which assumptions it makes,
+    and how it relates to classical RL, with every claim checked on an enumerable toy language
+    where the optimal policy is known exactly.
+  site-url: "https://ioannisantoniadis.github.io/rl-for-llms/"
+  repo-url: "https://github.com/ioannisantoniadis/rl-for-llms"
+  repo-actions: [edit, issue]
+  image: images/social_preview.png
+  open-graph: true
+  twitter-card:
+    card-style: summary_large_image
+  page-footer:
+    left: >-
+      Source on [GitHub](https://github.com/ioannisantoniadis/rl-for-llms).
+    right: "Rendered with [Quarto](https://quarto.org)."
+  chapters:
+    - index.qmd
+    - chapters/00-map.qmd
+    - part: "I. RL from first principles"
+      chapters:
+        - chapters/01-what-makes-a-problem-rl.qmd
+        - chapters/02-policy-gradients.qmd
+        - chapters/03-keeping-updates-stable.qmd
+    - part: "II. Language generation as an RL problem"
+      chapters:
+        - chapters/04-the-llm-as-a-policy.qmd
+        - chapters/05-rewards.qmd
+    - part: "III. The methods, derived"
+      chapters:
+        - chapters/06-the-shared-target.qmd
+        - chapters/07-direct-preference-methods.qmd
+        - chapters/08-policy-gradients-without-a-critic.qmd
+        - chapters/09-imitating-a-better-distribution.qmd
+        - chapters/10-rewarding-calibration.qmd
+    - part: "IV. Synthesis"
+      chapters:
+        - chapters/11-what-rl-does-to-a-model.qmd
+        - chapters/12-decision-guide.qmd
+        - unified-table.qmd
+  appendices:
+    - appendix-notation.qmd
+    - appendix-testbed.qmd
+    - appendix-acronyms.qmd
+    - appendix-terminology-traps.qmd
+    - appendix-timeline.qmd
+    - appendix-further-reading.qmd
+  navbar:
+    background: light
+  page-navigation: true
+
+format:
+  html:
+    theme:
+      - cosmo
+      - theme.scss
+    toc: true
+    number-sections: true
+    number-depth: 2
+    fig-align: center
+    smooth-scroll: true
+    grid:
+      sidebar-width: 260px
+      body-width: 850px
+      margin-width: 250px
+    link-external-newwindow: true
+
+bibliography: references.bib

@@ -1,0 +1,93 @@
+---
+title: "Notation and Conventions"
+---
+
+Every chapter uses the symbols on this page rather than defining its own. When a chapter needs a
+new symbol, it is added here in the same change. If two chapters ever use one letter for two
+things, that is a bug in the book.
+
+This book shares conventions with
+[loss-functions-lab](https://ioannisantoniadis.github.io/loss-functions-lab/appendix-notation.html)
+where the topics overlap ($\sigma$, $D_{\mathrm{KL}}$, $y^+ \succ y^-$), with one deliberate
+difference: there, bare $\pi$ is a ranking permutation; **here, $\pi$ is always a policy.**
+
+## Prompts, responses and tokens
+
+| Symbol | Meaning |
+|---|---|
+| $x$ | a prompt (the context, or the *state* at the start of an episode) |
+| $y = (y_1, \dots, y_T)$ | a response: a sequence of $T = \lvert y\rvert$ tokens |
+| $y_t$, $y_{<t}$ | the token at position $t$, and the prefix before it |
+| $s_t = (x, y_{<t})$ | the token-level *state*: the prompt plus the prefix generated so far |
+| $\mathcal{V}$ | the vocabulary (the token-level *action space*) |
+| $y^+ \succ y^-$ | in a preference pair, $y^+$ is preferred to $y^-$ |
+| $\mathcal{D}$, $\mathcal{D}_x$ | a fixed dataset; the distribution prompts are drawn from |
+
+## Policies
+
+| Symbol | Meaning |
+|---|---|
+| $\pi_\theta(y \mid x)$ | the policy being trained, with parameters $\theta$. By the chain rule, $\pi_\theta(y\mid x) = \prod_t \pi_\theta(y_t \mid x, y_{<t})$ |
+| $\pi_{\text{ref}}$ | the fixed **reference** policy that a KL term regularizes toward (usually the SFT model) |
+| $\pi_{\text{old}}$ | the policy that generated the current batch of samples (the behavior policy within one iteration) |
+| $\pi^\star$ | the optimum of the KL-regularized objective: $\pi^\star(y\mid x) = \pi_{\text{ref}}(y\mid x)\exp(r(x,y)/\beta)/Z(x)$ |
+| $Z(x)$ | the normalizer (partition function) $\sum_y \pi_{\text{ref}}(y\mid x)\exp(r(x,y)/\beta)$ |
+| $\pi_T$ | a teacher policy (distillation) |
+| $q$ | the **sampling distribution** a method draws its training responses from (the book's $(q,w)$ form) |
+| $w$ | the **per-sample (or per-token) weight** a method puts on $\nabla_\theta\log\pi_\theta$ |
+
+## Rewards, returns, values and advantages
+
+These four are different objects, and the book never uses one name for another.
+
+| Symbol | Meaning |
+|---|---|
+| $r(x, y)$ | the **reward**: a scalar score of one response (or $r_t$ for a per-step reward) |
+| $r^\star$ | the *true* reward, when a learned proxy also exists |
+| $\hat r$, $r_\phi$ | a **learned** reward: $r_\phi$ is a reward model with parameters $\phi$; $\hat r = \beta\log(\pi_\theta/\pi_{\text{ref}})$ is DPO's implicit reward |
+| $G_t$ | the **return**: the (discounted) sum of rewards from step $t$ to the end of the episode |
+| $\gamma$ | the discount factor; $\gamma = 1$ in LLM post-training, where episodes are finite |
+| $V^\pi(s)$, $Q^\pi(s,a)$ | **value** functions: the expected return from state $s$ (and action $a$) under $\pi$ |
+| $V_\phi$ | a learned value function (a **critic**) |
+| $A$, $\hat A$ | the **advantage** $A = Q - V$, and an estimate of it |
+| $b$ | a **baseline** subtracted from a return to reduce variance |
+| $\lambda$ | the GAE bias–variance parameter |
+| $G$ | the **group size**: responses sampled per prompt (RLOO, GRPO). Context separates it from the return $G_t$, which always carries a time index |
+
+## Objectives, ratios and regularizers
+
+| Symbol | Meaning |
+|---|---|
+| $J(\theta)$ | an objective to be **maximized** (expected reward, possibly regularized) |
+| $\mathcal{L}(\theta)$ | a loss to be **minimized** (DPO, SFT) |
+| $\beta$ | the KL-regularization strength (also DPO's inverse temperature; the same $\beta$, by design) |
+| $\rho_t = \pi_\theta(y_t\mid s_t)/\pi_{\text{old}}(y_t\mid s_t)$ | the per-token **importance ratio** |
+| $\epsilon$, $\epsilon_{\text{low}}$, $\epsilon_{\text{high}}$ | PPO clip range (and DAPO's decoupled bounds) |
+| $\sigma(z) = 1/(1+e^{-z})$ | the logistic sigmoid |
+| $D_{\mathrm{KL}}(p\,\|\,q) = \sum_y p(y)\log\frac{p(y)}{q(y)}$ | KL divergence. $D_{\mathrm{KL}}(\pi_\theta\|\pi_{\text{ref}})$ is the **reverse** KL (mode-seeking); $D_{\mathrm{KL}}(p_{\text{data}}\|\pi_\theta)$ is the **forward** KL that SFT minimizes (mass-covering) |
+| $k_1, k_2, k_3$ | Schulman's Monte Carlo KL estimators ([Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd)) |
+| $\mathbb{1}[\cdot]$ | the indicator function |
+| $\mathrm{sg}(\cdot)$ | stop-gradient |
+
+## Calibration ([Rewarding Calibration](chapters/10-rewarding-calibration.qmd))
+
+| Symbol | Meaning |
+|---|---|
+| $a$ | an answer (a decision) |
+| $p$ | a stated confidence that $a$ is correct |
+| $S(p, o)$ | a scoring rule applied to confidence $p$ and outcome $o \in \{0,1\}$; e.g. the negative Brier score $-(p - o)^2$ |
+
+All logarithms are natural. "Token-level" and "sequence-level" are always said explicitly when a
+ratio, advantage or KL could be either.
+
+## Recurring visual devices
+
+**Definition boxes** (`callout-note`): a named objective worth finding again.
+
+**Method cards** (`callout-tip`): immediately after a method's definition, the same eight fields
+in the same order (signal, sampling distribution $q$, per-sample weight $w$, stability mechanism,
+credit granularity, models in memory, target, classical lineage). The
+[unified table](unified-table.qmd) is assembled from them.
+
+**Classical-lineage callouts** (`callout-important`, titled "Classical lineage — this is ..."):
+where an LLM method reuses an idea from classical RL.

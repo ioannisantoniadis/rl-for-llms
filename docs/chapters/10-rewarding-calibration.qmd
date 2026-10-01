@@ -1,0 +1,231 @@
+---
+title: "Rewarding Calibration: RLCD and Proper Scoring Rules"
+---
+
+Every reward in the book so far scores the *answer*. A preference model scores how much raters like
+it; a verifier scores whether it is right. Neither asks the model how sure it is, and neither rewards
+it for knowing. In September 2026 TypeSafe AI announced a training method named for that missing
+target, Reinforcement Learning for Calibrated Decisions (RLCD), for a model, Jev, that returns typed
+decisions with probabilities. Only the name and the goal of RLCD are public. This chapter is
+therefore built in three visibly separate layers: what was disclosed, stated and dated; a
+first-principles reconstruction of what *rewarding calibration* means as RL, which is this book's own
+analysis and not TypeSafe's algorithm; and the openly published research on the same objective. The
+reconstruction is where the RL content is. It shows why a correctness reward pushes a model toward
+confident guessing, why a proper scoring rule makes honest probabilities optimal, and why the answer
+and the confidence cannot be rewarded separately.
+
+## Layer 1: what was disclosed
+
+As of 1 October 2026, the primary source is TypeSafe AI's announcement, "Introducing System One Models
+& Jev", dated 15 September 2026 [@typesafe2026jev]. It describes "a new stack entirely focused on
+automation: with a new model architecture, parallel sampler for maximum efficiency, and training
+method we call Reinforcement Learning for Calibrated Decisions (RLCD)". It contrasts RLCD's objective
+with RLHF's ("human preference") and RLVR's ("outputs that can be programmatically verified"): RLCD
+optimizes for "calibrated decisions: answers with epistemically honest probabilities on System One
+tasks". Jev returns "type-safe structured values", with "all answers ... accompanied with calibrated
+probabilities and confidence scores", and "outputs all probabilities in parallel instead of
+autoregressively generating by token" [@typesafe2026jev].
+
+The announcement does **not** disclose the training algorithm, the reward function or the
+architecture. Its FAQ says that Jev "is neither small nor an LLM", that on training data "We make all
+the data ourselves" ("if you want to find out more, we'd have to hire you"), and that TypeSafe
+"deliberately chose not to publish performance against public benchmarks" [@typesafe2026jev]. Its
+performance claims are the vendor's: end-to-end responses in "70ms-500ms", "40x-200x faster for the
+same levels of frontier intelligence for System One shaped queries", input tokens at "$0.042 / MTok"
+with output tokens "FREE", a model that "can't hallucinate" and "never makes type errors", and
+workflow comparisons of "193.6x faster, 444.6x cheaper". The post itself adds caveats: "Extraordinary
+claims require extraordinary evidence", the LLM comparison numbers come from OpenRouter where routing
+"almost certainly" biases them, and "we can't prove it isn't subsidized" [@typesafe2026jev]. None of
+these claims has been independently verified beyond the evaluation below.
+
+**One independent evaluation exists.** Guo et al. benchmark Jev as a zero-shot detector of ten
+alignment failures across 44 benchmarks and report a median AUROC of 0.886 with a single generic
+question, beating supervised baselines on most benchmarks at 63× lower cost than LLM-judge scorers
+[@guo2026justaskjev]. It does not describe RLCD's mechanism. Its calibration findings are the part
+that bears on this chapter, and they are more nuanced than "calibrated": "Jev's probabilities are
+calibrated when pooled but not within a benchmark." Pooled, the reliability curve is "close to the
+diagonal (ECE 0.047)"; per benchmark, "median per-benchmark ECE ... is 0.168 against 0.074 under
+perfect calibration, and 24 of 31 benchmarks exceed the null's 95th percentile". The error is "a
+base-rate mismatch, not a ranking problem": Jev's mean probability misses a benchmark's positive rate
+by a median of 0.125 while ranking well (median AUROC 0.905) [@guo2026justaskjev]. Calibration is a
+property of a model *on a distribution*, and one evaluation can show it holding in aggregate and
+failing within each slice.
+
+::: {.callout-tip title="Method card — RLCD (TypeSafe AI), public fields only"}
+| | |
+|---|---|
+| **Signal** | "calibrated decisions: answers with epistemically honest probabilities" (the objective is public; the reward is **undisclosed**) |
+| **Samples from** ($q$) | undisclosed |
+| **Per-sample weight** ($w$) | undisclosed |
+| **Stability** | undisclosed |
+| **Credit granularity** | undisclosed (outputs are typed decisions with probabilities, produced "in parallel", not token by token) |
+| **Models in memory** | undisclosed |
+| **Targets** | calibrated probabilities over typed answers (stated goal) |
+| **Classical lineage** | undisclosed; see the reconstruction below for what the stated goal implies |
+:::
+
+## Layer 2: a first-principles reconstruction
+
+::: {.callout-warning title="A first-principles reconstruction, not the vendor's algorithm"}
+Everything in this section is this book's analysis of what it means to reward calibration with RL.
+It is built from public theory (proper scoring rules) and checked on the toy language. It is not a
+description of how TypeSafe trains Jev, which has not been published.
+:::
+
+### The problem with a correctness reward
+
+Start from RLVR: reward $r = \mathbb{1}[\text{correct}]$. If the policy can answer or abstain, abstaining
+earns 0 and answering earns $P(\text{correct})$ in expectation, so answering is better whenever that
+probability is above zero. A binary correctness reward never rewards "I'm not sure". Wu et al. put
+it exactly: standard RLVR "inadvertently incentivize[s] models as good test-takers rather than honest
+communicators, encouraging guessing whenever correctness probability exceeds zero"
+[@wu2025behaviorally]. And if the policy states a confidence alongside its answer, a correctness
+reward is indifferent to it: nothing in the gradient touches the confidence, so it stays wherever
+pretraining put it.
+
+### Rewarding the stated probability with a proper scoring rule
+
+Let the policy output an answer $a$ and a confidence $p$ that $a$ is correct, and let
+$o = \mathbb{1}[a \text{ correct}]$. Reward the confidence with a scoring rule $S(p, o)$. If $S$ is
+**proper**, then for a fixed answer whose true probability of being right is $q$, the expected score
+$\mathbb{E}_{o\sim\text{Bernoulli}(q)}[S(p,o)]$ is maximized by reporting $p = q$: honesty is optimal.
+The negative Brier score $-(p-o)^2$ and the log score are both strictly proper. The theory of proper
+scoring rules is in
+[loss-functions-lab's decision-theory chapter](https://ioannisantoniadis.github.io/loss-functions-lab/chapters/08-decision-theory-proper-scoring.html)
+and in Gneiting and Raftery [@gneiting2007strictly]; for the Brier score the check is one line,
+$\mathbb{E}[-(p-o)^2] = -\big(q(1-p)^2 + (1-q)p^2\big)$, whose derivative in $p$ vanishes at $p = q$.
+
+Three points make this an RL problem rather than ordinary calibration.
+
+**The label depends on the policy.** The thing the confidence must predict is whether the model's
+*own* answer is right. Change the policy's answers and the right confidence changes. The feedback
+is evaluative and the data self-generated, the two properties of the
+[first chapter](01-what-makes-a-problem-rl.qmd). Post-hoc calibration on a fixed dataset of someone
+else's answers cannot express this.
+
+**The answer and the confidence interact.** Reward the confidence alone with the Brier score and the
+expected reward of an answer with success probability $q$, reported honestly, is $-q(1-q)$. That is
+highest at $q = 0$ or $q = 1$: the score rewards answers whose outcome is *predictable*, including
+answers that are predictably wrong. Add the correctness term, $r = o - (p - o)^2$, and the expected
+reward of an honestly reported answer is $q - q(1-q) = q^2$, increasing in $q$: the policy should
+give its best answer and its honest probability of being right.
+
+::: {.callout-note title="Definition — Correctness plus a proper scoring rule"}
+$$
+r(a, p) = \mathbb{1}[a \text{ correct}] + S(p, \mathbb{1}[a\text{ correct}]),\qquad S(p,o) = -(p - o)^2,
+$$
+whose expected value for an answer with success probability $q$ is maximized by the best available
+answer and $p = q$ (expected value $q^2$ at the optimum).
+:::
+
+Damani et al. state the general condition: with a correctness term of weight $\lambda$, a proper
+scoring rule keeps both incentives as long as it is *bounded*, $S(p,1) - S(p,0) < \lambda$; an
+unbounded rule like the log score can make "incorrect answers with zero confidence" optimal
+[@damani2025beyond].
+
+**One decision, an immediate outcome: a contextual bandit.** For a single typed decision whose
+outcome is known right away, there is no sequence of states to assign credit across. This is the
+contextual bandit of the [first chapter](01-what-makes-a-problem-rl.qmd), not a long-horizon MDP, and
+the policy gradient of the [policy-gradient chapter](02-policy-gradients.qmd) with a group baseline is
+all the machinery needed.
+
+::: {.callout-important title="Classical lineage — this is a contextual bandit with a forecaster's scoring rule"}
+The decision problem is Sutton and Barto's associative search: one action per context, an immediate
+outcome. The reward is a proper scoring rule, the device weather forecasting has used since Brier to
+make honest probability reports optimal. RL contributes the part forecasting did not need: the event
+being forecast is the outcome of the learner's own action.
+:::
+
+Abstention then falls out. With calibrated probabilities, a decision rule can answer only when the
+stated probability clears a threshold set by the cost of a wrong answer. With uncalibrated ones, the
+same rule is meaningless.
+
+::: {.callout-tip title="Method card — Correctness + Brier reward (the book's reconstruction)"}
+| | |
+|---|---|
+| **Signal** | the outcome of the policy's own answer, scored by $\mathbb{1}[\text{correct}] - (p - \mathbb{1}[\text{correct}])^2$ |
+| **Samples from** ($q$) | $\pi_\theta$: several (answer, confidence) samples per prompt (on-policy) |
+| **Per-sample weight** ($w$) | the reward minus a leave-one-out baseline |
+| **Stability** | none beyond a small learning rate in the toy; a KL to $\pi_{\text{ref}}$ is optional |
+| **Credit granularity** | one decision, one immediate outcome (contextual bandit) |
+| **Models in memory** | policy (+ a verifier for the outcome) |
+| **Targets** | the best answer per prompt, with stated probability equal to its success rate |
+| **Classical lineage** | a contextual bandit trained by REINFORCE with a Monte Carlo baseline; the reward is a proper scoring rule from forecasting |
+:::
+
+### Checked on the toy language
+
+The toy version (`rl4llm/calibration.py`) makes a response an answer (three tokens) followed by a
+stated confidence (the last token, one of 0.1, 0.3, 0.5, 0.7, 0.9). Each answer succeeds at random
+with a hidden probability, so there is real uncertainty the model cannot resolve. The prompts range
+from hard (the best answer is right 23% of the time) to easy (96%), and the reference policy is
+overconfident, putting most of its mass on "0.9". The policy is trained by RLOO with three rewards,
+and everything in @fig-calibration-reward is computed exactly under the trained policies.
+
+![The answer-plus-confidence task (2,500 steps of RLOO, 16 samples per prompt, median of 3 seeds; exact evaluation). Left: reliability diagrams; marker area shows how often each confidence is stated. Middle: accuracy, expected calibration error, and the rate of answers stated with confidence ≥ 0.7 that are wrong. The binary correctness reward raises accuracy but leaves the overconfident prior in place; the Brier score alone becomes calibrated by drifting toward predictably wrong answers; correctness plus Brier gives nearly the binary reward's accuracy with honest probabilities. Right: accuracy among answered questions when the policy abstains below a confidence threshold. Only the calibrated policy turns abstention into higher accuracy.](../images/calibration_reward.png){#fig-calibration-reward}
+
+The three rewards do what the analysis predicts. The **binary** reward raises accuracy from 0.37 to
+0.63 (the best achievable is 0.65) and leaves the stated confidence uninformative: its reliability
+curve is flat, its calibration error is 0.33, and 32% of all its answers are stated with confidence of
+at least 0.7 and wrong. The **Brier score alone** is the best calibrated (ECE 0.03), but its accuracy
+falls to 0.47, because on the hard prompts it learns to give answers that are almost surely wrong and
+say "0.1" (the exact optimum of the Brier-only reward is a surely-wrong answer on three of the four
+prompts). **Correctness plus Brier** keeps accuracy at 0.61, is calibrated (ECE 0.05), and cuts the
+confident-wrong rate from 32% to 7%. The right panel shows why calibration is worth having. Abstaining
+below a confidence threshold raises the calibrated policy's accuracy from 0.61 to 0.86 on the half of
+the questions it answers; the binary-reward policy's confidence carries so little information that
+the same rule only lifts its accuracy from 0.63 to 0.68 at a similar coverage.
+
+## Layer 3: public research on rewarding calibration
+
+Several openly published methods reward calibration with RL. None of them is TypeSafe's method, and
+the list reflects what was found by search as of 1 October 2026.
+
+- **RLCR** (Damani et al., 2025) has the model produce reasoning, an answer, an analysis of its
+  uncertainty and a numerical confidence, and rewards it with
+  $\mathbb{1}_{y\equiv y^*} - (q - \mathbb{1}_{y\equiv y^*})^2$, correctness plus the Brier score, the
+  reward reconstructed above. The paper proves that this reward (or any bounded proper scoring rule
+  added to correctness) yields answers that are both accurate and calibrated, and reports large
+  calibration gains (ECE 0.37 → 0.03 on HotpotQA) with accuracy comparable to standard RL, including
+  on held-out datasets where standard RL made calibration worse [@damani2025beyond].
+- **Behaviorally calibrated RL** (Wu et al., 2025) argues that hallucination is partly "a predictable
+  statistical consequence" of objectives that reward guessing, and trains with strictly proper scoring
+  rules so that a model can abstain or flag individual claims; it reports a 4B model surpassing
+  frontier models on its uncertainty metrics [@wu2025behaviorally].
+- **RefGRPO** (Zhu, 2026) targets agents: it finds a "reflection gap" in which agents mis-assess their
+  own outputs after seeing environment feedback, and adds "a free calibration bonus computed by
+  contrasting the agent's own reflection with the actual outcome" to standard RL [@zhu2026reflection].
+- **OpenJev-RLCD** (Gao and Wang, posted 30 September 2026, not peer-reviewed) is an independent,
+  open attempt at "a working implementation of reinforcement learning for calibrated decisions",
+  which states that it claims "nothing about Jev's internal algorithm" [@gao2026openjev]. It scores the
+  distribution a reasoning model assigns to the options after its rationale with the Brier score. Its
+  Proposition 1 is a variance decomposition: scoring the *mixture* over sampled rationales equals the
+  average per-rationale score plus a bonus for rationales that disagree, so a policy can collect
+  reward by randomizing its conclusions. Its Corollary 1 reads the familiar objective in those terms:
+  with sampled one-hot answers the calibrated group reward is "RLVR + Gini bonus", that is,
+  $2\Pr(A{=}Y) - 1$ plus the Gini impurity $1 - \|p\|^2$. Both identities are short algebra on the
+  Brier score, and the test suite checks them numerically (`tests/test_calibration.py`). The paper's
+  conclusion is to score each rationale's own distribution, which removes the bonus. Its empirical
+  results are the authors' own, two days old at the time of writing.
+
+### A name collision
+
+"RLCD" also names an unrelated, earlier method: *Reinforcement Learning from Contrastive
+Distillation* (Yang et al., 2023), which builds preference pairs by sampling from a positive and a
+negative prompt (for example, "harmless" vs. "harmful" instructions) and trains a preference model on
+them [@yang2023rlcd]. The two share an acronym and nothing else. The [acronym appendix](../appendix-acronyms.qmd)
+lists both.
+
+## Connections
+
+- [What Makes a Problem RL](01-what-makes-a-problem-rl.qmd) explains why rewarding calibration is RL
+  and not post-hoc calibration: the confidence must predict the correctness of the model's own,
+  changing answers, from evaluative feedback on self-generated data.
+- [Where Rewards Come From, and How They Break](05-rewards.qmd) covers rewards learned from what raters
+  prefer; this chapter designs a reward whose optimum is provably honest, and shows that even a proper
+  scoring rule can be gamed if it is not tied to correctness.
+- [Policy Gradients Without a Critic](08-policy-gradients-without-a-critic.qmd) supplies the estimator
+  (a group baseline) and, through OpenJev-RLCD's corollary, a new reading of what a group-based RLVR
+  objective rewards.
+- [Decision Guide and the Unified Table](12-decision-guide.qmd) places calibration rewards on the map
+  as a distinct signal source, next to preferences, verifiers and teachers.

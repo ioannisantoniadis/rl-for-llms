@@ -1,0 +1,162 @@
+---
+title: "Decision Guide and the Unified Table"
+---
+
+The book has derived some twenty methods, and every one of them turned out to be a choice along the
+same few axes: where the training signal comes from, which samples the gradient uses, what weight each
+sample gets, what keeps the update stable, at what granularity credit is assigned, and which target
+the whole procedure is aiming at. This chapter turns that into two practical tools. The first is a
+procedure for choosing a method given the signal and the budget you actually have, and for knowing
+what to watch while it trains. The second is a way to place a *new* method on the map in a few
+minutes, by asking the same questions of its paper. The unified table, assembled from the method
+cards, is the reference for both.
+
+## A procedure for choosing a method
+
+Work through five questions in order. Each one narrows the families that fit.
+
+**1. What signal do you have?**
+
+| You have | The natural families | Chapter |
+|---|---|---|
+| demonstrations of good behavior | SFT (behavior cloning); off-policy distillation if they come from a model | [LLM as a policy](04-the-llm-as-a-policy.qmd), [imitation](09-imitating-a-better-distribution.qmd) |
+| pairwise preferences, already collected | DPO and its variants; or a reward model + RL | [direct preference](07-direct-preference-methods.qmd), [rewards](05-rewards.qmd) |
+| a preference annotator you can query (human or model) | online DPO; reward model + on-policy RL | [direct preference](07-direct-preference-methods.qmd), [shared target](06-the-shared-target.qmd) |
+| thumbs-up / thumbs-down on single responses | KTO; or filtering | [direct preference](07-direct-preference-methods.qmd) |
+| a verifier (tests, answer checker) | critic-free policy gradients (RLOO, GRPO and its fixes); rejection-sampling fine-tuning | [critic-free](08-policy-gradients-without-a-critic.qmd), [imitation](09-imitating-a-better-distribution.qmd) |
+| a stronger model whose log-probabilities you can query | on-policy distillation | [imitation](09-imitating-a-better-distribution.qmd) |
+| outcomes against which a stated probability can be scored | correctness + a bounded proper scoring rule | [calibration](10-rewarding-calibration.qmd) |
+
+**2. Can you sample from the current policy and score the samples during training?** If yes,
+on-policy methods are available, and they are the ones that learn from the model's own mistakes (the
+DAgger argument of the [LLM-as-policy chapter](04-the-llm-as-a-policy.qmd)) and that, on the toy
+language, kept converging where offline methods drifted. If no, you are offline: DPO-family methods on
+a fixed dataset, or one round of filtering. Expect the offline costs measured in the
+[direct-preference chapter](07-direct-preference-methods.qmd): no exploration, overfitting the
+dataset's deterministic preferences, and the policy drifting away from the data's distribution. A
+middle path is iterated: collect, train, re-collect.
+
+**3. What can you hold in memory?** PPO-based RLHF needs four models (policy, reference, reward model,
+critic). Critic-free methods with a verifiable reward need two (policy, reference) or one if the KL
+term is dropped. DPO needs two, and the reference's log-probabilities can be precomputed. SimPO and
+ORPO need one. On-policy distillation needs the student and the teacher.
+
+**4. What target do you want, and does your implementation actually aim at it?** If the goal is the
+KL-regularized optimum $\pi^\star$, check how the KL is implemented: "$k_1$ in the reward" and "$k_2$ as a
+loss" target it; "$k_3$ as a loss" regularizes the forward KL instead and lands elsewhere
+([keeping updates stable](03-keeping-updates-stable.qmd)). Check what the advantage normalization does:
+dividing by a group's standard deviation reweights prompts and weakens the KL relative to the reward,
+and dividing by each response's length biases length
+([critic-free](08-policy-gradients-without-a-critic.qmd)). If the method has no reference model at all
+(SimPO, ORPO, DAPO), it has no $\pi^\star$; decide whether that matters for your use.
+
+**5. What will you monitor?** Every failure mode in the book has a signature that can be watched.
+
+| Watch | Because | Chapter |
+|---|---|---|
+| KL from $\pi_{\text{ref}}$ | the axis along which overoptimization happens; a KL penalty mostly decides where on it training stops | [rewards](05-rewards.qmd) |
+| reward on a held-out *true* metric, not just the training reward | a learned or hackable reward keeps rising after the true one peaks | [rewards](05-rewards.qmd) |
+| response length (for correct and incorrect responses separately) | length bias from reward models and from per-response normalization | [rewards](05-rewards.qmd), [critic-free](08-policy-gradients-without-a-critic.qmd) |
+| entropy, and the diversity of correct answers | collapse from unregularized optimization and iterated filtering | [imitation](09-imitating-a-better-distribution.qmd), [what RL does](11-what-rl-does-to-a-model.qmd) |
+| fraction of groups with zero reward variance | the share of the batch that carries no signal | [critic-free](08-policy-gradients-without-a-critic.qmd) |
+| fraction of tokens clipped | clipping silences tokens rather than flagging problems | [stable updates](03-keeping-updates-stable.qmd) |
+| likelihood of the preferred responses (preference methods) | likelihood displacement | [direct preference](07-direct-preference-methods.qmd) |
+| calibration of any stated confidence, per data slice | pooled calibration can hide per-slice base-rate errors | [calibration](10-rewarding-calibration.qmd) |
+
+## Classical RL vs LLM-era RL, revisited
+
+The [LLM-as-policy chapter](04-the-llm-as-a-policy.qmd) gave a table of what became of each classical
+concept. Having derived the methods, three of its rows can be stated more sharply.
+
+- **The critic** was dropped for single-turn reasoning because a group of samples gives an unbiased
+  per-prompt baseline at the cost of extra generation, and the measured benefit of an exact per-token
+  critic over a per-prompt baseline was small on the toy language
+  ([policy gradients](02-policy-gradients.qmd)). It returns where consequences are delayed across turns
+  ([what RL does](11-what-rl-does-to-a-model.qmd)).
+- **The KL to a reference** is the one genuinely new structural element, and its implementation
+  decides the target ([stable updates](03-keeping-updates-stable.qmd),
+  [shared target](06-the-shared-target.qmd)).
+- **Off-policy learning** survives mainly as offline preference optimization (DPO), which avoids
+  importance sampling altogether by not sampling, and as mild staleness in asynchronous pipelines,
+  corrected by ratios and clips.
+
+## The unified table
+
+One row per method, with the fields that matter most for choosing between them. The full table, with
+every method-card field and a filter box, is on [its own page](../unified-table.qmd).
+
+::: {.column-page}
+{{< include ../includes/unified-table-compact.md >}}
+:::
+
+## Placing a new paper on the map in five minutes
+
+When a new post-training method appears, ask its paper the method-card questions, in this order. Most
+papers answer each in a sentence, usually in the method section or the main equation.
+
+1. **Signal.** What does the training signal say, and who produced it: demonstrations, preferences,
+   binary labels, a learned reward, a verifier, a judge, a teacher's log-probabilities, a scored
+   probability?
+2. **Sampling distribution $q$.** Which responses does the gradient use: a fixed dataset, the current
+   policy, an older policy, a teacher?
+3. **Weight $w$.** Write the gradient as $\mathbb{E}_{q}[w\,\nabla\log\pi_\theta]$. What is $w$, per
+   sample or per token? Can it be negative? Is it normalized, and by what?
+4. **Stability.** What stops the policy moving too far: a KL (to what, in which direction, implemented
+   how), a clip (on what ratio, at which granularity), nothing?
+5. **Credit.** Is the weight per sequence, per step or per token?
+6. **Target.** If everything were exact, which distribution would the procedure converge to? Is it
+   $\pi^\star$ for some reward and $\beta$, or something else?
+
+Then name the classical idea it reuses, and the method it modifies. That is a row of the unified
+table.
+
+**A worked example: Math-Shepherd.** The paper trains a process reward model whose label for each
+reasoning step is the fraction of $N$ completions from that step that reach the correct answer, and
+then "employ[s it] to reinforce LLMs with step-by-step Proximal Policy Optimization" [@wang2024mathshepherd].
+*Signal*: a learned process reward, per step. *Sampling*: the current policy, as in PPO. *Weight*: PPO's
+clipped advantage, now with rewards at every step instead of only at the end. *Stability*: PPO's clip
+(and whatever KL the implementation uses, which the reader should check). *Credit*: step level, from a
+reward that is a Monte Carlo estimate of the value of each partial solution. *Target*: the
+KL-regularized optimum of the process-reward-shaped objective. *Classical lineage*: PPO with a learned
+value function used as a shaping reward. *Parent*: PPO-based RLHF, with the outcome reward model replaced
+by a process reward model. The [rewards chapter](05-rewards.qmd) predicts its risk: a learned value is a
+proxy, and a policy optimized against it will find where it is wrong.
+
+## The final test
+
+The book set out to move a reader from
+
+> "RLHF, DPO, and GRPO are three alignment techniques I've heard of."
+
+to
+
+> "All three target a KL-regularized reward objective whose optimum is the reference policy tilted by
+> $\exp(r/\beta)$. RLHF learns a reward from preferences and climbs toward that optimum with an on-policy
+> policy gradient, using a learned critic as baseline and a clip as trust region. DPO uses the closed
+> form to cancel the reward model out and fits the policy to fixed preference pairs by logistic
+> regression, giving up exploration. GRPO keeps the on-policy policy gradient but replaces the critic
+> with a Monte Carlo baseline computed from a group of samples per prompt, which works well when rewards
+> are verifiable."
+
+with one amendment that the toy language forced: GRPO *as published*, with its KL estimator in the loss
+and its standard-deviation normalization, regularizes a different divergence than RLHF and lands
+somewhere else. And from
+
+> "RL is a different kind of ML from supervised learning."
+
+to
+
+> "RL differs in where the data comes from and what the feedback says. Its gradient is a weighted
+> maximum-likelihood gradient on samples the learner chose to generate. SFT is the special case of
+> weight 1 on someone else's samples."
+
+## Connections
+
+- [The Map](00-map.qmd) draws the lineage this chapter tabulates, and the space of feedback, data and
+  credit in which every row of the unified table sits.
+- [Policy Gradients](02-policy-gradients.qmd) introduced the $(q, w)$ form that question 2 and 3 of the
+  five-minute recipe ask about.
+- [The Shared Target, and RLHF with PPO](06-the-shared-target.qmd) supplies the target that question 6
+  asks about, and the signature figure that compares every route to it.
+- The [terminology traps](../appendix-terminology-traps.qmd) and [acronym decoder](../appendix-acronyms.qmd)
+  appendices collect the vocabulary problems that made the methods look more different than they are.

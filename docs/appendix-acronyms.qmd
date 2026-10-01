@@ -1,0 +1,51 @@
+---
+title: "Acronym Decoder"
+---
+
+Much of the confusion this book addresses is terminological: a stream of acronyms, each naming a
+bundle of choices. Each entry below gives the expansion, a one-line description in terms of the
+book's axes (what it samples, how it weights, what it targets), and the chapter where it is derived.
+
+| Acronym | Expansion | What it is, from first principles | Chapter |
+|---|---|---|---|
+| **AWR** | Advantage-Weighted Regression | supervised learning on logged actions weighted by $\exp(A/\beta)$; fits the KL-constrained optimum | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **BoN** | Best-of-$n$ | sample $n$, keep the highest-scoring; inference-time filtering | [9](chapters/09-imitating-a-better-distribution.qmd), [5](chapters/05-rewards.qmd) |
+| **BT** | Bradley–Terry | $P(y^+\succ y^-) = \sigma(r(y^+) - r(y^-))$; turns comparisons into a reward | [5](chapters/05-rewards.qmd) |
+| **CAI** | Constitutional AI | AI-generated critiques and preferences from a list of principles, then RL from AI feedback | [5](chapters/05-rewards.qmd) |
+| **CISPO** | Clipped Importance Sampling Weight Policy Optimization | policy gradient whose importance weight is clipped but never zeroed | [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **DAgger** | Dataset Aggregation | imitation learning that collects expert labels on the learner's own states | [1](chapters/01-what-makes-a-problem-rl.qmd), [4](chapters/04-the-llm-as-a-policy.qmd) |
+| **DAPO** | Decoupled Clip and Dynamic sAmpling Policy Optimization | GRPO with asymmetric clip, zero-variance groups dropped, token-level loss, no KL | [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **DPO** | Direct Preference Optimization | logistic regression of preference pairs on the implicit reward $\beta\log(\pi/\pi_{\text{ref}})$; targets $\pi^\star$ offline | [7](chapters/07-direct-preference-methods.qmd) |
+| **Dr. GRPO** | Group Relative Policy Optimization Done Right | GRPO without the std and per-response length normalizations | [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **ECE** | Expected Calibration Error | average gap between stated confidence and observed accuracy | [10](chapters/10-rewarding-calibration.qmd) |
+| **GAE** | Generalized Advantage Estimation | exponentially weighted sum of TD errors; the bias–variance knob $\lambda$ | [2](chapters/02-policy-gradients.qmd) |
+| **GKD** | Generalized Knowledge Distillation | distillation on a mix of fixed data and the student's own samples | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **GRPO** | Group Relative Policy Optimization | REINFORCE with a group-normalized Monte Carlo baseline, PPO clip, $k_3$ KL in the loss | [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **GSPO** | Group Sequence Policy Optimization | GRPO with a sequence-level importance ratio and clip | [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **IPO** | Identity Preference Optimization | DPO with a bounded (squared) loss; targets the preference-probability tilt | [7](chapters/07-direct-preference-methods.qmd) |
+| **KL** | Kullback–Leibler divergence | reverse $D_{\mathrm{KL}}(\pi\|\pi_{\text{ref}})$ in RL objectives; forward in SFT | [3](chapters/03-keeping-updates-stable.qmd) |
+| **KTO** | Kahneman–Tversky Optimization | unpaired binary labels scored against a reference point | [7](chapters/07-direct-preference-methods.qmd) |
+| **LLM-as-judge** | — | a general model prompted to compare or grade, used as a reward | [5](chapters/05-rewards.qmd) |
+| **MDP** | Markov Decision Process | states, actions, transitions, rewards; for text: prefix, token, append, terminal reward | [1](chapters/01-what-makes-a-problem-rl.qmd), [4](chapters/04-the-llm-as-a-policy.qmd) |
+| **ORM / PRM** | Outcome / Process Reward Model | a reward for the final answer / for each step; a PRM trained on rollouts estimates a value function | [5](chapters/05-rewards.qmd) |
+| **ORPO** | Odds Ratio Preference Optimization | SFT plus an odds-ratio preference term; no reference model | [7](chapters/07-direct-preference-methods.qmd) |
+| **PPO** | Proximal Policy Optimization | policy gradient with a clipped importance ratio (a soft trust region) and a critic | [3](chapters/03-keeping-updates-stable.qmd), [6](chapters/06-the-shared-target.qmd) |
+| **PPO-ptx** | PPO with pretraining mix | InstructGPT's PPO plus a pretraining-likelihood term | [6](chapters/06-the-shared-target.qmd) |
+| **RAFT** | Reward rAnked FineTuning | fine-tune on the reward-ranked best of the policy's samples | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **ReMax** | — | REINFORCE with the greedy response's reward as baseline | [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **ReST** | Reinforced Self-Training | grow (sample) / improve (filter and fine-tune), iterated | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **RFT** | Rejection-sampling Fine-Tuning | SFT on the policy's filtered correct samples | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **RLAIF** | RL from AI Feedback | RLHF with preference labels from a model | [5](chapters/05-rewards.qmd) |
+| **RLCD** (2026) | Reinforcement Learning for Calibrated Decisions | TypeSafe AI's training method for Jev; goal public (calibrated probabilities), mechanism undisclosed | [10](chapters/10-rewarding-calibration.qmd) |
+| **RLCD** (2023) | Reinforcement Learning from Contrastive Distillation | an unrelated earlier method: preference pairs from positive vs. negative prompts | [10](chapters/10-rewarding-calibration.qmd) |
+| **RLCR** | RL with Calibration Rewards | correctness plus Brier score on a verbalized confidence | [10](chapters/10-rewarding-calibration.qmd) |
+| **RLHF** | RL from Human Feedback | a *pipeline*: SFT, a reward model from human comparisons, RL (usually PPO) with a KL penalty | [6](chapters/06-the-shared-target.qmd) |
+| **RLOO** | REINFORCE Leave-One-Out | REINFORCE with the mean reward of the other samples as baseline | [2](chapters/02-policy-gradients.qmd), [8](chapters/08-policy-gradients-without-a-critic.qmd) |
+| **RLVR** | RL with Verifiable Rewards | RL against a rule-based checker; the term is from Tülu 3 | [5](chapters/05-rewards.qmd) |
+| **RM** | Reward Model | a network trained (usually by Bradley–Terry) to score responses | [5](chapters/05-rewards.qmd) |
+| **RWR** | Reward-Weighted Regression | supervised learning on samples weighted by (exponentiated) reward | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **SFT** | Supervised Fine-Tuning | maximum likelihood on demonstrations; behavior cloning | [4](chapters/04-the-llm-as-a-policy.qmd) |
+| **SimPO** | Simple Preference Optimization | reference-free, length-normalized DPO-like loss with a margin | [7](chapters/07-direct-preference-methods.qmd) |
+| **STaR** | Self-Taught Reasoner | keep self-generated rationales that reach the right answer and fine-tune on them, iterated | [9](chapters/09-imitating-a-better-distribution.qmd) |
+| **TD** | Temporal Difference | bootstrapped value targets $r + \gamma V(s')$ | [1](chapters/01-what-makes-a-problem-rl.qmd) |
+| **TRPO** | Trust Region Policy Optimization | maximize a surrogate subject to a KL constraint to the old policy | [3](chapters/03-keeping-updates-stable.qmd) |
