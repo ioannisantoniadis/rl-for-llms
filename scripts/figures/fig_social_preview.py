@@ -48,7 +48,7 @@ for m in M:
     ax.scatter([x], [y], s=120, color=COLOR[m["family"]], edgecolor="white", linewidth=1, zorder=3)
     # A surface-colored backing keeps edges that leave a node from striking through its label.
     ax.text(x + 0.08, y, m["short"], fontsize=7.5, va="center", color=INK, zorder=4,
-            bbox=dict(boxstyle="round,pad=0.12", facecolor=SURFACE, edgecolor="none"))
+            bbox={"boxstyle": "round,pad=0.12", "facecolor": SURFACE, "edgecolor": "none"})
 fig.text(0.04, 0.70, "Reinforcement Learning\nfor Language Models,\nfrom First Principles", fontsize=27,
          fontweight="bold", color=INK, va="top")
 fig.text(0.04, 0.36, "RLHF, PPO, DPO, GRPO and their relatives\nas one idea with different approximations,\n"
