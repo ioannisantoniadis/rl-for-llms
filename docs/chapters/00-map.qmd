@@ -19,12 +19,15 @@ sequence of actions.
 
 ## The lineage: one tree, a few branches
 
-Every named method modifies an earlier one, usually in exactly one respect. The tree has two roots,
-the policy gradient (REINFORCE) and behavior cloning (SFT), and after PPO-based RLHF it branches into
-the families of Part III: direct preference methods, critic-free policy gradients, filtered imitation
-and distillation, and rewards for calibration.
+Almost every named method modifies an earlier one, usually in exactly one respect. The tree grows
+from two main roots, the policy gradient (REINFORCE) and behavior cloning (SFT). From REINFORCE come
+PPO and PPO-based RLHF, which branches into the direct preference methods and GRPO's line of
+critic-free policy gradients; the other critic-free methods (RLOO, ReMax) and the calibration reward
+modify REINFORCE directly. Filtered imitation and distillation grow from SFT. Two methods stand
+alone: best-of-$n$ sampling, which modifies no training method, and TypeSafe's RLCD, whose lineage is
+undisclosed.
 
-![The method lineage: each arrow points from a method to the one that modifies it, laid out by generation (the length of the chain of modifications from a root) and colored by family, with the year of each method's primary source. Generated with networkx from the same records as the unified table.](../images/method_lineage.png){#fig-method-lineage}
+![The method lineage: each arrow points from a method to the one that modifies it, laid out by generation (the length of the chain of modifications from a root) and colored by family, with the year of each method's primary source (SFT and best-of-$n$, which have no single primary source, carry none). Generated with networkx from the same records as the unified table.](../images/method_lineage.png){#fig-method-lineage}
 
 Each node links to a chapter:
 

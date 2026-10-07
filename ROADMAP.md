@@ -300,3 +300,20 @@ inspected → prose → render → §15 check. Decisions and findings made along
   (both versions), the lineage graph, the feedback-space map and the timeline.
 - **Chapter lengths** (words incl. tables): Chs 1–10 ≈ 2,200–3,300; Ch 11 ≈ 2,000; Ch 12 ≈ 1,650.
   Below the spec's 2,500–4,000 for some chapters; not padded. Flagged for the author.
+
+## Issue #1 remediation (2026-10-07)
+
+Fixed the defects reported by the cross-repository quality assessment (GitHub issue #1); details and
+the re-verified numbers are in `research-log.md`. Decisions made along the way:
+
+- **Every number quoted in prose is printed by a figure script.** Where a quoted number was not
+  printed (Ch 1 entropies, Ch 6/8 "without std division", Ch 7 log-probabilities), the script now
+  prints it; seed-dependent numbers are quoted as a median and range over the figure's seeds.
+- **Ch 8's constant-normalizer comparison** is now a controlled one: an unplotted run with only the
+  aggregation changed (2.6 tokens), with the plotted Dr. GRPO run (3.0) named as such.
+- **Method-specific coefficients** no longer reuse $\gamma$ or $\lambda$ (reserved for the discount
+  and GAE): $c_{\text{ptx}}$, $c_D$/$c_U$, $c_{\text{OR}}$, $c_{\text{corr}}$ and SimPO's margin $m$,
+  each with the paper's own letter noted. Schulman's ratio is $u$; Ch 10's true success probability is
+  $\eta$. All added to the notation appendix.
+- **Bib keys follow the year field**: `zhang2026design`, `wang2023mathshepherd`, `xiong2023iterative`.
+- Not reproduced: the README "unclosed italic asterisk" (every `*` in `README.md` is paired).

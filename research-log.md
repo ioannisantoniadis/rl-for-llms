@@ -659,3 +659,35 @@ frequencies 0.40/0.30/0.15/0.10/0.05): unregularized RLOO → task success [0.99
 base [0.22, 0.15, 0.28, 0.18, 0.18]; frequency-weighted pass@1 0.20 → 0.40, pass@256 1.0 → 0.42,
 crossover from k = 3. Labelled in the chapter as a deliberately extreme mechanism illustration, not a
 reproduction of Yue et al.
+
+## Issue #1 remediation (2026-10-07)
+
+Re-verification of the claims flagged by the cross-repository quality assessment (GitHub issue #1).
+Quotations re-checked against the arXiv PDF text (`pdftotext`):
+
+| Source | What was checked | Status |
+|---|---|---|
+| Christiano et al. (2017), arXiv 1706.03741 | RL algorithms: "we use advantage actor-critic (A2C ...) to play Atari games, and trust region policy optimization (TRPO ...) to perform simulated robotics tasks" (PDF text line ~250); no KL term anywhere in the paper (an entropy bonus only). Abstract wording is "less than 1% of our agent's interactions" (the earlier "less than one percent" was a paraphrase). Ch 6 no longer groups it with the PPO + KL recipe. | ✓ PDF text |
+| Ahmadian et al. (2024), arXiv 2402.14740 | Verbatim: "the concentration of probability mass on a few tokens at each generation step" (PDF text line ~392); "modeling partial sequences is an unnecessary undertaking" (contributions list) | ✓ PDF text |
+| Yu et al. (2025), DAPO, arXiv 2503.14476 | Verbatim: "the upper clipping threshold indeed restricts the probability increase of low-probability 'exploration' tokens" (Clip-Higher section, PDF text line ~368) | ✓ PDF text |
+| Wu et al. (2025), arXiv 2512.19920 | Verbatim (abstract): "Standard RLVR paradigms ... inadvertently incentivize models to function as "good test-takers" rather than "honest communicators", encouraging guessing whenever the probability of correctness exceeds zero"; "a predictable statistical consequence" | ✓ PDF text |
+| Guo et al. (2026), Jev evaluation | "24 of 31 benchmarks exceed the null's 95th percentile": calibration fails within *most* slices, not every slice (terminology-traps appendix and Ch 10 corrected) | ✓ (already logged quote) |
+
+Numbers now printed by the figure scripts (figures byte-identical before and after, except
+`gradient_variance_by_baseline.png`, whose middle-panel title changed):
+
+- `fig_gradient_variance_by_baseline.py`: the "good policy" is $\pi^\star_{\beta=0.5}$, success
+  [0.116, 0.63, 0.947, 0.852], mean 0.636 (was mislabelled 85%). At G = 2, RLOO (16.5) is above no
+  baseline (14.2).
+- `fig_direct_preference.py`: offline DPO final KL 0.190 / 0.049 / 0.020 (5k/20k/100k, 800 steps,
+  seed 0); 5k run, preferred responses of correct-over-incorrect pairs −1.78 → −1.13, all chosen
+  −2.17 → −2.37; 69% tied pairs; KL(IPO target ‖ π*) = 0.180, trained IPO 0.187.
+- `fig_all_roads_to_pi_star.py`: DPO 5k 0.294 (1,000 steps, median of 3 seeds); GRPO with $k_3$ in
+  the loss 1.08 with std division, 0.49 without (median of 3 seeds, `advantage="dr_grpo"`).
+- `fig_grpo_biases.py`: final lengths (correct / wrong): GRPO 2.15 / 4.81; constant normalizer with
+  std kept 2.59 / 4.63; Dr. GRPO 3.03 / 4.64. Zero-signal probability at G = 8 per prompt
+  [0.869, 0.19, 0.063, 0.011] for success rates [0.017, 0.187, 0.707, 0.439].
+- `fig_three_kinds_of_feedback.py`: hard prompt, 5 seeds: fixed log P(correct) 0.29–0.43 (median
+  0.36); SFT 17–21 responses above 1%, entropy 3.61–3.77 nats (expert 3.50, 19 responses);
+  REINFORCE 1–3 responses above 1%, entropy 0.10–0.82 nats (median 0.15).
+- `fig_pass_at_k.py`: RL task success [0.999, 0, 0, 0, 0]: all four less frequent tasks collapse.

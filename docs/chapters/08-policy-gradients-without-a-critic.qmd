@@ -27,8 +27,8 @@ whose rewards are all equal carries exactly zero signal.
 ## Back to basics: REINFORCE and RLOO
 
 Ahmadian et al. revisited the simplest estimator for RLHF and argued that PPO's machinery solves
-problems LLM fine-tuning does not have: strong pretraining concentrates "probability mass ... on a
-few tokens at each generation step", and with rewards only at the end, "modeling partial sequences
+problems LLM fine-tuning does not have: strong initialization leads to "the concentration of
+probability mass on a few tokens at each generation step", and with rewards only at the end, "modeling partial sequences
 is an unnecessary undertaking" [@ahmadian2024back]. They model the whole response as one action and
 use the leave-one-out baseline of Kool et al. [@kool2019buy]:
 
@@ -126,7 +126,7 @@ and those are exactly what the 2025 papers took apart.
 
 **No variation, no signal.** With 0/1 rewards a group of $G$ samples is uninformative with
 probability $p^G + (1-p)^G$. At $G = 8$ that is 87% for the toy language's hard prompt (success rate
-0.02) and 6% for a medium one (left panel). This is the slow start of the hard prompt in the
+0.02), 6% for its easiest one (0.71) and 1% for a medium one (0.44) (left panel). This is the slow start of the hard prompt in the
 [first chapter](01-what-makes-a-problem-rl.qmd), now as a formula. Larger groups help, which is one
 reason DeepSeekMath used 64.
 
@@ -141,8 +141,8 @@ variation at all and contribute nothing.) Liu et al. identify this "question-lev
 "higher weights during policy updates" [@liu2025understanding]. It also changes the effective KL
 strength: GRPO's KL term is not divided by the standard deviation, so normalizing the advantages
 weakens the regularization relative to the reward, and on the toy language the same GRPO runs
-without the division end about half as far from $\pi^\star$
-([the shared-target chapter](06-the-shared-target.qmd)).
+without the division end about half as far from $\pi^\star$ (0.49 nats instead of 1.08;
+[the shared-target chapter](06-the-shared-target.qmd)).
 
 **Per-response length normalization biases length.** The $1/|o_i|$ in GRPO's objective divides each
 response's summed per-token loss by its own length. For a positive advantage, a short response gets
@@ -151,8 +151,10 @@ response is penalized less per token. Liu et al. describe the consequence: GRPO 
 gradient updates for shorter responses" among correct ones while "longer responses are penalized
 less" among incorrect ones [@liu2025understanding]. The right panel runs GRPO on a variable-length
 version of the toy language, where length is never rewarded ([the testbed appendix](../appendix-testbed.qmd)).
-With per-response normalization, correct answers shrink from about 4.5 tokens to 2.2, against 3.0
-with a constant normalizer, and wrong answers grow to 4.8 tokens against 4.6. In this toy the larger
+With per-response normalization, correct answers shrink from about 4.5 tokens to 2.2, and wrong
+answers grow from 4.0 to 4.8. Swapping in a constant normalizer while keeping everything else
+(including the standard-deviation division) gives 2.6 and 4.6; Dr. GRPO, which also drops the
+division and is the run plotted, gives 3.0 and 4.6. In this toy the larger
 effect is on the correct answers; Liu et al. report the wrong answers' length "growing wildly" in
 real long chain-of-thought training, and that a constant normalizer substantially reduces it
 [@liu2025understanding].
@@ -181,8 +183,8 @@ attributing such behaviors to RL alone.
 
 **DAPO** makes four changes, each aimed at one problem [@yu2025dapo]. *Clip-Higher* decouples the
 clip bounds ($\epsilon_{\text{low}} = 0.2$, $\epsilon_{\text{high}} = 0.28$), because the upper bound
-"restricts probability increases of exploration tokens" that start with low probability, which
-collapses entropy. *Dynamic sampling* filters out groups in which "all outputs receive the same
+"restricts the probability increase of low-probability 'exploration' tokens", which collapses
+entropy. *Dynamic sampling* filters out groups in which "all outputs receive the same
 reward", which have zero advantage and only shrink the effective batch: the left panel of
 @fig-grpo-biases is how often that happens. *Token-level policy-gradient loss* aggregates over all
 tokens in the batch instead of averaging per response first, so that long responses are not

@@ -24,7 +24,7 @@ from _theme import FAMILY_COLOR, INK_SECONDARY, apply_theme, savefig
 
 from rl4llm.estimators import advantages
 from rl4llm.methods._common import Adam
-from rl4llm.metrics import expected
+from rl4llm.metrics import entropy, expected
 from rl4llm.toy_language import (
     default_testbed,
     grad_log_likelihood,
@@ -64,7 +64,7 @@ def run(regime: str, seed: int):
             w = reward[prompts, ys]
         useful.append((reward[prompts, ys] > 0).reshape(P, G).mean(axis=1))
         logits = opt.step(logits, grad_log_likelihood(lang, logits, prompts, ys, w) / len(ys))
-    return np.array(p_correct), np.array(useful)
+    return np.array(p_correct), np.array(useful), sequence_logprobs(lang, logits)
 
 
 regimes = {
@@ -109,3 +109,10 @@ savefig(fig, "three_kinds_of_feedback")
 for k in regimes:
     pc = np.median(np.array([r[0] for r in results[k]]), 0)
     print(k, "final P(correct) per prompt:", pc[-1].round(3), " at 1/3 of training:", pc[STEPS // 3].round(3))
+    # Hard prompt, final policy, per seed: how spread out it is (quoted in Chapter 1).
+    final = [r[2][HARD] for r in results[k]]
+    print(f"  hard prompt per seed: P(correct) {[round(float(r[0][-1, HARD]), 2) for r in results[k]]}, "
+          f"responses above 1% {[int((np.exp(lp) > 0.01).sum()) for lp in final]}, "
+          f"entropy (nats) {[round(float(entropy(lp)), 2) for lp in final]}")
+print(f"expert (demonstrations), hard prompt: entropy {float(entropy(expert_logp[HARD])):.2f} nats, "
+      f"responses above 1% {int((np.exp(expert_logp[HARD]) > 0.01).sum())}")

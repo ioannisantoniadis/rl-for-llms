@@ -46,8 +46,8 @@ can make RL lower a problem's success rate. The simplest such thing is shared ca
 distribution that must serve five tasks whose correct answers compete, with the tasks appearing in
 training at different frequencies. That is deliberately extreme (a real model sees the prompt and can
 specialize), but it isolates the mechanism. RL moves the shared distribution toward what is rewarded
-most often. Frequency-weighted pass@1 doubles, from 0.20 to 0.40, while the success rate on the three
-rarest tasks falls to zero, so pass@256 drops from 1.0 to 0.42 for the unregularized RL policy. The
+most often. Frequency-weighted pass@1 doubles, from 0.20 to 0.40, while the success rate on every task
+except the most frequent falls to zero, so pass@256 drops from 1.0 to 0.42 for the unregularized RL policy. The
 KL-regularized optima show the same pattern more gently as $\beta$ falls.
 
 ![Left: on the default testbed, with a separate (fully expressive) policy for each prompt, the KL-regularized optimum raises pass@$k$ at every $k$. Middle: one shared distribution serving five tasks that appear in training with frequencies 40/30/15/10/5%; as optimization strengthens (smaller $\beta$, or RLOO with no KL), pass@1 rises but pass@$k$ at large $k$ falls below the base, a crossover. Right: why: success moves to the frequently rewarded task and vanishes on the others. All values exact.](../images/pass_at_k.png){#fig-pass-at-k}

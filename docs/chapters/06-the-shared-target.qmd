@@ -133,11 +133,11 @@ With the target fixed, the method chapters can be previewed as routes to it.
 | Rejection-sampling fine-tuning | SFT on samples filtered to be distributed as $\pi^\star$ | samples from $\pi_{\text{ref}}$ | [9](09-imitating-a-better-distribution.qmd) |
 | On-policy distillation | per-token reverse KL to a teacher that is (or approximates) $\pi^\star$ | the student's own samples | [9](09-imitating-a-better-distribution.qmd) |
 
-@fig-all-roads-to-pi-star runs every one of them on the toy language with the same optimizer and
+@fig-all-roads-to-pi-star runs one representative of each route on the toy language with the same optimizer and
 learning-rate schedule and measures the exact KL from the trained policy to $\pi^\star$. The top
 row groups the routes by family; the bottom row shows where each run ends.
 
-![Every method in the book trained on the toy language ($\beta = 0.5$), measured against the exact $\pi^\star$. Top: exact $\mathrm{KL}(\pi_\theta\|\pi^\star)$ during training, grouped by family, with the exact gradient as a reference (sampled methods: median of 3 seeds; plot floor $10^{-5}$). Bottom left: each run's path in the reward–KL plane, ending near $\pi^\star$ (star) on the frontier of the best achievable reward. Bottom right: final distance to $\pi^\star$. Every route aims at the same distribution; noise and finite or offline data decide how close it gets, and GRPO with its KL estimator in the loss regularizes a different divergence and converges elsewhere.](../images/all_roads_to_pi_star.png){#fig-all-roads-to-pi-star}
+![One representative of each route (RLOO, PPO-RLHF, GRPO in two forms, DPO, rejection-sampling fine-tuning, on-policy distillation) trained on the toy language ($\beta = 0.5$), measured against the exact $\pi^\star$. Top: exact $\mathrm{KL}(\pi_\theta\|\pi^\star)$ during training, grouped by family, with the exact gradient as a reference (sampled methods: median of 3 seeds; plot floor $10^{-5}$). Bottom left: each run's path in the reward–KL plane, ending near $\pi^\star$ (star) on the frontier of the best achievable reward. Bottom right: final distance to $\pi^\star$. Every route aims at the same distribution; noise and finite or offline data decide how close it gets, and GRPO with its KL estimator in the loss regularizes a different divergence and converges elsewhere.](../images/all_roads_to_pi_star.png){#fig-all-roads-to-pi-star}
 
 The figure says three things, in increasing order of interest.
 
@@ -157,18 +157,20 @@ The figure says three things, in increasing order of interest.
    in the loss. The [chapter on keeping updates stable](03-keeping-updates-stable.qmd) showed that this
    regularizes the forward KL instead of the reverse one; here GRPO also divides each prompt's
    advantages by their standard deviation while leaving the KL term unscaled, which further weakens
-   the effective regularization (the same runs without the standard-deviation division end about
-   half as far from $\pi^\star$). It ends more than 1 nat from $\pi^\star$, with much higher reward
+   the effective regularization (the same runs without the standard-deviation division end 0.49
+   nats from $\pi^\star$ instead of 1.08, about half as far). It ends more than 1 nat from $\pi^\star$, with much higher reward
    and a KL from $\pi_{\text{ref}}$ six times larger. That is not a worse estimator of the same
    target; it is a different target. [Policy Gradients Without a Critic](08-policy-gradients-without-a-critic.qmd)
    takes it apart.
 
 ## RLHF with PPO: the first route
 
-The recipe that made the target practical is the one in Christiano et al., Ziegler et al.,
-Stiennon et al. and InstructGPT [@christiano2017deep; @ziegler2019finetuning;
-@stiennon2020learning; @ouyang2022training]: collect comparisons, fit a Bradley–Terry reward
-model ([the rewards chapter](05-rewards.qmd)), then optimize $J_\beta$ against it with PPO. Seen
+The recipe that made the target practical is the one in Ziegler et al., Stiennon et al. and
+InstructGPT [@ziegler2019finetuning; @stiennon2020learning; @ouyang2022training]: collect
+comparisons, fit a Bradley–Terry reward model ([the rewards chapter](05-rewards.qmd)), then
+optimize $J_\beta$ against it with PPO. It builds on Christiano et al., who learned the reward from
+comparisons in the same way but optimized it with A2C (Atari) and TRPO (simulated robotics), with
+no KL penalty toward a reference policy [@christiano2017deep]. Seen
 from this book, every part of it has already been derived.
 
 **The reward, with the KL folded in.** The KL term is implemented in the reward, per token. Ziegler
@@ -193,7 +195,7 @@ model, and InstructGPT initializes its value function from the reward model too
 
 **The update.** PPO's clipped surrogate over several epochs of minibatches from each batch of
 rollouts, from the [chapter on stable updates](03-keeping-updates-stable.qmd). InstructGPT adds a
-term that keeps fitting the pretraining distribution, "PPO-ptx", with coefficient $\gamma$, because
+term that keeps fitting the pretraining distribution, "PPO-ptx", with coefficient $c_{\text{ptx}}$ (the paper's $\gamma$), because
 it can "minimize performance regressions on public NLP datasets" [@ouyang2022training].
 
 ::: {.callout-tip title="Method card — PPO-based RLHF"}

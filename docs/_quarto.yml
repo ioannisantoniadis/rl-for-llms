@@ -11,6 +11,7 @@ book:
     where the optimal policy is known exactly.
   site-url: "https://ioannisantoniadis.github.io/rl-for-llms/"
   repo-url: "https://github.com/ioannisantoniadis/rl-for-llms"
+  repo-subdir: docs
   repo-actions: [edit, issue]
   image: images/social_preview.png
   open-graph: true

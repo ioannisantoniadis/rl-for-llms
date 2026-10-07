@@ -22,6 +22,7 @@ from _theme import CATEGORICAL, FAMILY_COLOR, INK_SECONDARY, MUTED, apply_theme,
 from matplotlib.ticker import FuncFormatter, NullFormatter
 
 from rl4llm.experiments_gradvar import bias_variance, exact_values
+from rl4llm.metrics import expected
 from rl4llm.toy_language import (
     default_testbed,
     logits_from_sequence_logprobs,
@@ -34,7 +35,10 @@ N_DRAWS = 1500
 
 lang, ref, reward = default_testbed()
 ref_logp = sequence_logprobs(lang, ref)
-trained = logits_from_sequence_logprobs(lang, optimal_logprobs(ref_logp, reward, 0.5))
+trained_logp = optimal_logprobs(ref_logp, reward, 0.5)
+trained = logits_from_sequence_logprobs(lang, trained_logp)
+success = expected(trained_logp, reward).mean()  # pi*_{beta=0.5}, mean over prompts
+print(f"success rate of the trained policy: {success:.3f}")
 
 est_style = {
     "none": ("no baseline (REINFORCE)", INK_SECONDARY, "-", "o"),
@@ -62,19 +66,20 @@ ax.set_ylabel("relative MSE of the gradient estimate")
 ax.set_title(r"At $\pi_{\mathrm{ref}}$: a baseline removes the offset")
 ax.legend(fontsize=8.3, loc="upper left")
 
-# Panel 2: group size at a good policy (85% success), offset 0.
+# Panel 2: group size at a better policy (pi*_{beta=0.5}), offset 0.
 Gs = np.array([2, 4, 8, 16, 32])
 ax = axes[1]
 vals = exact_values(lang, trained, reward)
 for k, (label, color, ls, mk) in est_style.items():
     mse = [sum(bias_variance(lang, trained, reward, G, k, n_draws=N_DRAWS, values=vals)[:2]) for G in Gs]
     ax.plot(Gs, mse, color=color, ls=ls, marker=mk, ms=5, label=label)
+    print(f"G sweep {k}:", np.round(mse, 3))
 ax.set_xscale("log", base=2)
 ax.set_yscale("log")
 ax.set_xticks(Gs, [str(g) for g in Gs])
 ax.set_xlabel(r"samples per prompt $G$")
 ax.set_ylabel("relative MSE")
-ax.set_title("At a good policy (85% correct), offset 0")
+ax.set_title(rf"At $\pi^\star_{{\beta=0.5}}$ ({success:.0%} correct), offset 0")
 
 # Panel 3: GAE lambda with an imperfect critic.
 rng = np.random.default_rng(7)

@@ -120,8 +120,11 @@ argument formally: with deterministic or near-deterministic preferences, the rew
 go to infinity, so the KL regularization becomes ineffective, whereas RLHF is protected in
 practice by its reward model's underfitting [@azar2023general]. The left panel of
 @fig-direct-preference shows it on the toy language. Offline DPO on 5,000 pairs per prompt
-approaches $\pi^\star$ for about 50 steps and then moves away, ending near 0.2 nats. More data delays
-and shrinks the drift (20,000 pairs end near 0.05, 100,000 near 0.02).
+approaches $\pi^\star$ for about 50 steps and then moves away, ending at 0.19 nats after 800 steps.
+More data delays and shrinks the drift (20,000 pairs end near 0.05, 100,000 near 0.02). The same
+drift appears in [The Shared Target](06-the-shared-target.qmd), which trains for 1,000 steps with a
+different learning-rate schedule and reports the median of three seeds; there the 5,000-pair run ends
+further away, at 0.29 nats.
 
 ![Left: exact distance to $\pi^\star$ during DPO training on fixed datasets of three sizes, and with online pairs drawn fresh from the current policy each step. Offline DPO approaches $\pi^\star$ and then overfits its dataset, more with less data; online DPO keeps converging. Middle: IPO on 20,000 pairs per prompt. It does not drift, and converges to its own exact optimum (solid), but that optimum is a different distribution from DPO's $\pi^\star$ (dashed; the dotted line is the distance between the two targets). Right: DPO with a log-linear policy whose responses share features, trained on pairs that differ by one token (median and range over 10 random pair sets). The rejected responses fall and the margin grows in every run; the preferred responses fall in most runs too.](../images/direct_preference.png){#fig-direct-preference}
 
@@ -135,8 +138,8 @@ measured by a "centered hidden embedding similarity" (CHES) score [@razin2025uni
 
 The toy language shows both why this can happen and why it needs shared structure. With the
 fully tabular policy, the preferred responses of informative pairs (correct over incorrect) become
-*more* likely during DPO; their mean log-probability rose from $-1.78$ to $-1.20$ in the run behind
-the left panel. The average over all chosen responses falls, but only because 69% of the pairs
+*more* likely during DPO; their mean log-probability rose from $-1.78$ to $-1.13$ in the 5,000-pair run behind
+the left panel. The average over all chosen responses falls (from $-2.17$ to $-2.37$), but only because 69% of the pairs
 are between two equally good responses, where the "chosen" one won a coin flip and is often
 wrong. (That is a real hazard of noisy labels, but a different one.) The right panel uses a
 log-linear policy instead, in which a response's score is a sum of per-position token weights, so
@@ -158,7 +161,7 @@ datasets used in DAP [direct alignment from preferences] methods are usually col
 training and never updated", and propose online AI feedback: at each step, sample two responses
 "from the current model" and have an LLM annotator choose between them [@guo2024direct]. Xiong et al.
 derive an iterative version of DPO from a reverse-KL-regularized contextual bandit formulation and
-report that it beats offline DPO [@xiong2024iterative], and Noukhovitch et al. found online DPO the
+report that it beats offline DPO [@xiong2023iterative], and Noukhovitch et al. found online DPO the
 most robust to the staleness of asynchronous training [@noukhovitch2025asynchronous].
 
 The left panel of @fig-direct-preference includes the online version: each step draws fresh pairs
@@ -196,8 +199,9 @@ The changed assumption also changes the target. With $\Psi$ the identity, the op
 $\pi_{\text{ref}}$ by the *probability of winning a comparison* against the data distribution,
 $\pi^{\text{IPO}}\propto\pi_{\text{ref}}\exp\big(p(y\succ\mu)/\tau\big)$, not by the reward. The middle
 panel of @fig-direct-preference computes that optimum exactly: IPO on 20,000 pairs per prompt
-converges to it (within 0.005 nats) with no drift, and it is 0.18 nats from DPO's $\pi^\star$, a
-distribution with noticeably lower expected reward on the toy task. IPO trades the reward-based
+converges to it (within 0.005 nats) with no drift. That optimum is 0.18 nats from DPO's $\pi^\star$
+(the trained IPO policy ends 0.19 nats away), a distribution with noticeably lower expected reward
+on the toy task. IPO trades the reward-based
 target for robustness.
 
 ::: {.callout-tip title="Method card — IPO"}
@@ -219,8 +223,8 @@ Pairs are expensive; a thumbs-up or thumbs-down on a single response is cheap. K
 binary signal of whether an output is desirable or undesirable for an input" [@ethayarajh2024kto].
 It keeps DPO's implicit reward $r_\theta = \log\frac{\pi_\theta}{\pi_{\text{ref}}}$ but scores each
 response against a *reference point* $z_0$ rather than against a paired alternative: desirable
-responses earn $\lambda_D\,\sigma(\beta(r_\theta - z_0))$ and undesirable ones
-$\lambda_U\,\sigma(\beta(z_0 - r_\theta))$. The reference point is a batch estimate of the KL between
+responses earn $c_D\,\sigma(\beta(r_\theta - z_0))$ and undesirable ones
+$c_U\,\sigma(\beta(z_0 - r_\theta))$ (the paper's $\lambda_D$ and $\lambda_U$). The reference point is a batch estimate of the KL between
 policy and reference, "biased but convenient", and the authors "do not backpropagate through $z_0$"
 [@ethayarajh2024kto]. The framing is Kahneman and Tversky's prospect theory: value is measured
 relative to a reference point, with possibly different weights for gains and losses. The changed
@@ -231,7 +235,7 @@ assumption is the data model: unpaired binary labels instead of Bradley–Terry 
 |---|---|
 | **Signal** | binary desirable / undesirable labels on single responses (no pairs) |
 | **Samples from** ($q$) | a fixed dataset of labelled responses (offline) |
-| **Per-sample weight** ($w$) | $\pm\lambda\beta\,\sigma'(\cdot)$: the slope of a sigmoid of $r_\theta - z_0$, signed by the label |
+| **Per-sample weight** ($w$) | $\pm c_{D/U}\,\beta\,\sigma'(\cdot)$: the slope of a sigmoid of $r_\theta - z_0$, signed by the label |
 | **Stability** | the log-ratio to $\pi_{\text{ref}}$; the batch reference point $z_0$ |
 | **Credit granularity** | sequence level |
 | **Models in memory** | policy, reference |
@@ -242,8 +246,8 @@ assumption is the data model: unpaired binary labels instead of Bradley–Terry 
 ### SimPO: drop the reference, normalize by length
 
 SimPO replaces the implicit reward with the *average* log-probability per token,
-$\frac{\beta}{|y|}\log\pi_\theta(y\mid x)$, and adds a target margin $\gamma$:
-$-\log\sigma\big(\frac{\beta}{|y^+|}\log\pi_\theta(y^+) - \frac{\beta}{|y^-|}\log\pi_\theta(y^-) - \gamma\big)$
+$\frac{\beta}{|y|}\log\pi_\theta(y\mid x)$, and adds a target margin $m$ (the paper's $\gamma$):
+$-\log\sigma\big(\frac{\beta}{|y^+|}\log\pi_\theta(y^+) - \frac{\beta}{|y^-|}\log\pi_\theta(y^-) - m\big)$
 [@meng2024simpo]. Two assumptions change. There is no reference model, which saves its memory and
 compute but removes the anchor that defines $\pi^\star$: SimPO no longer targets the KL-regularized
 optimum of anything. And the reward is length-normalized, motivated by the observation that DPO's
@@ -256,7 +260,7 @@ length bias [@meng2024simpo].
 | **Signal** | pairwise preferences |
 | **Samples from** ($q$) | a fixed dataset of pairs (offline) |
 | **Per-sample weight** ($w$) | $\pm\frac{\beta}{|y|}\sigma(-\text{margin})$, per response, with the length normalization inside |
-| **Stability** | the target margin $\gamma$; no reference, no KL |
+| **Stability** | the target margin $m$; no reference, no KL |
 | **Credit granularity** | sequence level, length-normalized |
 | **Models in memory** | policy only |
 | **Targets** | does not target $\pi^\star$: without $\pi_{\text{ref}}$ there is no KL-regularized objective |
@@ -266,8 +270,8 @@ length bias [@meng2024simpo].
 ### ORPO: fold the preference into SFT
 
 ORPO removes the reference model *and* the separate SFT stage. Its loss is the SFT negative
-log-likelihood of the preferred response plus $\lambda$ times an odds-ratio term,
-$\mathcal{L}_{\text{SFT}} + \lambda\mathcal{L}_{\text{OR}}$ with
+log-likelihood of the preferred response plus $c_{\text{OR}}$ (the paper's $\lambda$) times an odds-ratio
+term, $\mathcal{L}_{\text{SFT}} + c_{\text{OR}}\mathcal{L}_{\text{OR}}$ with
 $\mathcal{L}_{\text{OR}} = -\log\sigma\big(\log\frac{\text{odds}_\theta(y^+\mid x)}{\text{odds}_\theta(y^-\mid x)}\big)$
 and $\text{odds}(y) = P(y)/(1 - P(y))$ for the length-normalized (geometric-mean) probability
 [@hong2024orpo]. The changed assumption is the pipeline: preference alignment happens "without a

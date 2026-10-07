@@ -66,6 +66,9 @@ These four are different objects, and the book never uses one name for another.
 | $\sigma(z) = 1/(1+e^{-z})$ | the logistic sigmoid |
 | $D_{\mathrm{KL}}(p\,\|\,q) = \sum_y p(y)\log\frac{p(y)}{q(y)}$ | KL divergence. $D_{\mathrm{KL}}(\pi_\theta\|\pi_{\text{ref}})$ is the **reverse** KL (mode-seeking); $D_{\mathrm{KL}}(p_{\text{data}}\|\pi_\theta)$ is the **forward** KL that SFT minimizes (mass-covering) |
 | $k_1, k_2, k_3$ | Schulman's Monte Carlo KL estimators ([Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd)) |
+| $u = \pi_{\text{ref}}(y)/\pi_\theta(y)$ | the reference-to-policy ratio inside $k_1, k_2, k_3$ (Schulman writes $r$) |
+| $c_{\text{ptx}}$, $c_D$, $c_U$, $c_{\text{OR}}$, $c_{\text{corr}}$ | method-specific weights on a loss or reward term: InstructGPT's pretraining-mix coefficient, KTO's desirable/undesirable weights, ORPO's odds-ratio weight, the correctness weight in Damani et al.'s condition. The source papers write $\gamma$ or $\lambda$, which this book keeps for the discount and GAE |
+| $m$ | SimPO's target margin (the paper's $\gamma$) |
 | $\mathbb{1}[\cdot]$ | the indicator function |
 | $\mathrm{sg}(\cdot)$ | stop-gradient |
 
@@ -75,6 +78,7 @@ These four are different objects, and the book never uses one name for another.
 |---|---|
 | $a$ | an answer (a decision) |
 | $p$ | a stated confidence that $a$ is correct |
+| $\eta$ | the true probability that $a$ is correct, which an honest confidence $p$ should equal |
 | $S(p, o)$ | a scoring rule applied to confidence $p$ and outcome $o \in \{0,1\}$; e.g. the negative Brier score $-(p - o)^2$ |
 
 All logarithms are natural. "Token-level" and "sequence-level" are always said explicitly when a

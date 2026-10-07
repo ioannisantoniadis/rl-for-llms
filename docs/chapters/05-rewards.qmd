@@ -20,7 +20,7 @@ measured exactly on the toy language.
 People can usually say which of two responses is better far more reliably than they can score
 either one on an absolute scale. Christiano et al. made this the basis of reward learning: fit a
 reward function to human comparisons between pairs of agent behaviors, then optimize it with RL,
-needing human feedback on "less than one percent" of the agent's interactions
+needing human feedback on "less than 1%" of the agent's interactions
 [@christiano2017deep]. The comparison model they used "follows the Bradley-Terry model ... for
 estimating score functions from pairwise preferences" [@christiano2017deep]: the probability that
 $y^+$ is preferred to $y^-$ is a logistic function of the difference in their rewards.
@@ -128,7 +128,7 @@ result is about process rewards as *verifiers for reranking*, not about process 
 training signal.
 
 Math-Shepherd closes that gap and makes the link to classical RL explicit
-[@wang2024mathshepherd]. It labels each step automatically by its "potential to deduce the correct
+[@wang2023mathshepherd]. It labels each step automatically by its "potential to deduce the correct
 answer": a "completer" model finishes the solution $N$ times from that step, and the step's label
 is the fraction of completions that reach the right answer (their "soft estimation"). It then
 uses the resulting PRM both to rerank and to train the policy with step-by-step PPO. Look at what

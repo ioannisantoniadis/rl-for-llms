@@ -129,15 +129,16 @@ them, its batches become informative, and learning accelerates sharply (the righ
 acceleration is the self-generated property at work. The fixed log has the same evaluative
 signal but no such feedback loop: the share of useful samples stays at $\pi_{\text{ref}}$'s 2%
 forever, and after the same number of samples the policy is still right only about 36% of the
-time.
+time (median over the five seeds; 29% to 43%).
 
 The figure also shows something the table did not predict. On the hard prompt, RL overtakes
 supervised learning. The two runs are not chasing the same thing. The expert's demonstrations
 spread probability over all the correct answers, and SFT has to reproduce that whole spread: at
-the end, the SFT policy still puts more than 1% probability on each of 19 different responses,
-with an entropy of about 3.6 nats, essentially the expert's. The REINFORCE policy is rewarded
-only for being correct, so it is free to pile its mass onto whichever correct answer it found
-first; it ends with about 0.1 nats of entropy and one dominant response. Maximizing expected
+the end, the SFT policy still puts more than 1% probability on each of 17 to 21 different
+responses (depending on the seed), with an entropy of 3.6 to 3.8 nats, close to the expert's 3.5.
+The REINFORCE policy is rewarded only for being correct, so it is free to pile its mass onto
+whichever correct answers it found first; it ends with 0.1 to 0.8 nats of entropy (median 0.15)
+and only one to three responses above 1%. Maximizing expected
 reward rewards collapse onto one good answer; imitation rewards reproducing a distribution. That
 contrast returns with a precise form, forward versus reverse KL, in the
 [chapter on keeping updates stable](03-keeping-updates-stable.qmd), and in the debate about what
@@ -217,8 +218,8 @@ There are two broad ways to turn this apparatus into an agent.
 **Value-based** methods learn $Q$ and derive the policy from it, usually by acting greedily:
 $\pi(s) = \arg\max_a Q(s,a)$. Q-learning and DQN are the canonical examples. They are
 off-policy by construction (they can learn about the greedy policy while behaving otherwise),
-they reuse experience efficiently through bootstrapping and replay, and they dominate domains
-with small discrete action sets and dense rewards.
+they reuse experience efficiently through bootstrapping and replay, and they need a maximization
+over actions at every step, which is cheap only when the action set is small and discrete.
 
 **Policy-based** methods parameterize the policy directly, $\pi_\theta(a\mid s)$, and adjust
 $\theta$ by gradient ascent on expected return. Sutton and Barto list what this buys

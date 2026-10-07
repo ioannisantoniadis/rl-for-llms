@@ -193,14 +193,14 @@ of trained models.
 
 In practice $D_{\mathrm{KL}}(\pi_\theta\|\pi_{\text{ref}})$ is never computed exactly; it is
 estimated from the sampled responses. Schulman's note on approximating KL divergence defines three
-single-sample estimators for samples $y\sim\pi_\theta$ with $r = \pi_{\text{ref}}(y)/\pi_\theta(y)$
-[@schulman2020approximating]:
+single-sample estimators for samples $y\sim\pi_\theta$ with $u = \pi_{\text{ref}}(y)/\pi_\theta(y)$
+(the note writes $r$; here $r$ is always a reward) [@schulman2020approximating]:
 
-- $k_1 = -\log r$: unbiased, but noisy and negative for some samples;
-- $k_2 = \tfrac12(\log r)^2$: always non-negative and low-variance, but biased (its mean is a
+- $k_1 = -\log u$: unbiased, but noisy and negative for some samples;
+- $k_2 = \tfrac12(\log u)^2$: always non-negative and low-variance, but biased (its mean is a
   different f-divergence that matches the KL only to second order);
-- $k_3 = (r-1) - \log r$: unbiased *and* always non-negative, by adding the zero-mean control
-  variate $r - 1$ to $k_1$.
+- $k_3 = (u-1) - \log u$: unbiased *and* always non-negative, by adding the zero-mean control
+  variate $u - 1$ to $k_1$.
 
 GRPO uses $k_3$, per token, and calls it "unbiased" and "guaranteed to be positive"
 [@shao2024deepseekmath, sec. 4.1]. The top row of @fig-kl-estimators checks these properties on
@@ -249,7 +249,7 @@ zero expected gradient, and that "$k_3$ as loss" is "a first-order, biased appro
 principled reverse-KL gradient [@liu2025rethinking]. Zhang et al. show that $k_3$'s *expectation*
 is the reverse KL, and that GRPO's KL term lacks the importance weight
 $\pi_\theta/\pi_{\text{old}}$ that would make its gradient follow it when samples come from
-$\pi_{\text{old}}$ [@zhang2025design]. The table is the on-policy case of both. The test suite
+$\pi_{\text{old}}$ [@zhang2026design]. The table is the on-policy case of both. The test suite
 checks all four rows against finite differences on the toy language
 (`tests/test_kl_penalties.py`).
 

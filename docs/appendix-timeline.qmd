@@ -12,7 +12,7 @@ citation). The bars on the right count the methods of the [unified table](unifie
 |---|---|---|
 | 1992 | REINFORCE [@williams1992simple] | [Policy Gradients](chapters/02-policy-gradients.qmd) |
 | 2007 | Reward-weighted regression [@peters2007reinforcement] | [Imitating a Better Distribution](chapters/09-imitating-a-better-distribution.qmd) |
-| 2011 | DAgger [@ross2011reduction] | [What Makes a Problem RL](chapters/01-what-makes-a-problem-rl.qmd) |
+| 2011 | DAgger [@ross2011reduction] | [The LLM as a Policy](chapters/04-the-llm-as-a-policy.qmd) |
 | 2015 | TRPO [@schulman2015trust]; GAE [@schulman2015gae] | [Keeping Updates Stable](chapters/03-keeping-updates-stable.qmd), [Policy Gradients](chapters/02-policy-gradients.qmd) |
 | 2016 | Sequence-level KD [@kim2016sequence]; REINFORCE for text generation [@ranzato2016sequence] | [Imitating](chapters/09-imitating-a-better-distribution.qmd), [The LLM as a Policy](chapters/04-the-llm-as-a-policy.qmd) |
 | 2017 | PPO [@schulman2017proximal]; RL from human preferences [@christiano2017deep]; KL-control [@jaques2017sequence] | [Stable Updates](chapters/03-keeping-updates-stable.qmd), [Rewards](chapters/05-rewards.qmd), [Shared Target](chapters/06-the-shared-target.qmd) |

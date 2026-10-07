@@ -1,4 +1,4 @@
-"""All roads lead to pi*: every method in the book, trained on the toy language, measured against the
+"""All roads lead to pi*: one representative of each route in the book, trained on the toy language, measured against the
 exact optimum of the KL-regularized objective.
 
 This figure makes visible that methods with completely different training signals (on-policy policy
@@ -135,3 +135,11 @@ for n in names:
     r = results[n]
     print(f"{n:44s} KL->pi* {r['kl_opt'][-1]:.2e}  KLref {r['kl_ref'][-1]:.3f}  E[r] {r['reward'][-1]:.3f}")
 print("pi*:", round(tx, 3), round(ty, 3))
+
+# Not plotted: GRPO as published but without the per-group std division (mean-only advantages),
+# to separate the std division's effect from the k3-in-the-loss effect (quoted in Chapters 6 and 8).
+no_std = [grpo.train(lang, ref, reward, BETA, kl="k3_loss", advantage="dr_grpo", epochs=2, seed=s, **common)[1]
+          for s in SEEDS]
+print(f"GRPO, k3 in the loss, without std division: KL->pi* median "
+      f"{np.median([h.kl_to_opt[-1] for h in no_std]):.2f} "
+      f"(with std division {results['GRPO as published ($k_3$ in the loss)']['kl_opt'][-1]:.2f})")

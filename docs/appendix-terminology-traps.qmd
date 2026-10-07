@@ -57,7 +57,8 @@ standard deviation reweights prompts by difficulty and weakens the KL relative t
 the objective. ([Policy Gradients Without a Critic](chapters/08-policy-gradients-without-a-critic.qmd))
 
 **"Calibrated" is a property of a model on a distribution.** A model can be calibrated when results are
-pooled and miscalibrated within every slice, as the independent evaluation of Jev found.
+pooled and miscalibrated within most slices, as the independent evaluation of Jev found (24 of 31
+benchmarks outside the range expected under perfect calibration).
 ([Rewarding Calibration](chapters/10-rewarding-calibration.qmd))
 
 **"RLCD" names two unrelated methods.** Reinforcement Learning from Contrastive Distillation (2023)

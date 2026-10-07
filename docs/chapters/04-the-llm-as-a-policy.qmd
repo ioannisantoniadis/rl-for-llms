@@ -84,8 +84,8 @@ model, they make the problem easy in ways a robotics or games researcher would e
   prefix, so "resetting" to an intermediate state is trivial.
 - **A strong prior policy already exists.** RL does not start from random behavior. It starts from
   a pretrained and instruction-tuned model that already produces sensible responses and often
-  correct ones. Ahmadian et al. point out that this concentrates probability mass: "probability
-  mass is concentrated on a few tokens at each generation step", even though the nominal action
+  correct ones. Ahmadian et al. point out that strong initialization leads to "the concentration
+  of probability mass on a few tokens at each generation step", even though the nominal action
   space is enormous, which keeps policy-gradient variance manageable [@ahmadian2024back].
 - **Exploration mostly comes for free.** Sampling from the prior, with some temperature, already
   covers plausible responses. Classical exploration bonuses rarely appear.

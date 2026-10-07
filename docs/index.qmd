@@ -27,10 +27,10 @@ Three commitments shape everything here:
    Carlo baseline, a trust region, behavior cloning, reward-weighted regression) the book says
    so explicitly.
 3. **Check it exactly.** Every experiment runs on a toy language small enough to enumerate (625
-   possible responses), where the optimal policy, every KL and the true policy gradient can be
+   possible responses in almost every experiment, 15,625 in one variable-length variant), where the optimal policy, every KL and the true policy gradient can be
    computed exactly. Methods are measured against ground truth, not eyeballed.
 
-![Every method in the book, trained on the toy language and measured against the exact optimum $\pi^\star$ of the KL-regularized objective. They aim at the same distribution; what separates them is the estimator (gradient noise, finite or offline data) and, for GRPO as published, an implementation detail that changes the target. The full figure and its discussion are in [The Shared Target](chapters/06-the-shared-target.qmd).](images/all_roads_to_pi_star.png){#fig-all-roads-preview}
+![One method from each route to $\pi^\star$ (RLOO, PPO-RLHF, GRPO, DPO, rejection-sampling fine-tuning, on-policy distillation), trained on the toy language and measured against the exact optimum $\pi^\star$ of the KL-regularized objective. They aim at the same distribution; what separates them is the estimator (gradient noise, finite or offline data) and, for GRPO as published, an implementation detail that changes the target. The full figure and its discussion are in [The Shared Target](chapters/06-the-shared-target.qmd).](images/all_roads_to_pi_star.png){#fig-all-roads-preview}
 
 ## How this book is organized
 

@@ -39,9 +39,27 @@ OR = FAMILY_COLOR["preference"]
 
 fig, axes = plt.subplots(1, 3, figsize=(16, 4.7))
 ax = axes[0]
+informative = []  # 5k run: mean log-prob of the preferred response, (correct-over-incorrect, all pairs)
+
+
+def record_informative(step, logits, data):
+    pr, yw, yl = data
+    keep = (reward[pr, yw] == 1) & (reward[pr, yl] == 0)
+    if step == 0:
+        tie = (reward[pr, yw] == reward[pr, yl]).mean()
+        print(f"5k pairs: {tie:.0%} of pairs are between equally rewarded responses")
+    lp = sequence_logprobs(lang, logits)
+    informative.append((lp[pr[keep], yw[keep]].mean(), lp[pr, yw].mean()))
+
+
 for n, ls in ((5_000, ":"), (20_000, "--"), (100_000, "-.")):
-    _, h = dpo.train(lang, ref, reward, BETA, n_pairs_per_prompt=n, **common)
+    cb = record_informative if n == 5_000 else None
+    _, h = dpo.train(lang, ref, reward, BETA, n_pairs_per_prompt=n, callback=cb, **common)
     ax.plot(h.step, h.kl_to_opt, color=OR, ls=ls, label=f"offline DPO, {n // 1000}k pairs/prompt")
+    print(f"offline DPO {n // 1000}k: final KL to pi* {h.kl_to_opt[-1]:.3f}")
+(inf0, all0), (inf1, all1) = informative[0], informative[-1]
+print(f"5k run, mean log-prob of preferred responses: correct-over-incorrect pairs {inf0:.2f} -> {inf1:.2f}, "
+      f"all pairs {all0:.2f} -> {all1:.2f}")
 _, h = dpo.train(lang, ref, reward, BETA, online=True, **common)
 ax.plot(h.step, h.kl_to_opt, color=OR, lw=2.4, label="online DPO (fresh pairs from $\\pi_\\theta$)")
 ax.set_yscale("log")
@@ -63,7 +81,9 @@ _, h = dpo.train(lang, ref, reward, BETA, n_pairs_per_prompt=20_000, variant="ip
 s, d = np.array(ipo_dist).T
 ax.plot(h.step, h.kl_to_opt, color=OR, ls="--", label=r"IPO, 20k pairs: KL to DPO's $\pi^\star$")
 ax.plot(s, d, color=OR, ls="-.", label="IPO, 20k pairs: KL to IPO's own target")
-ax.axhline(kl(ipo_target, optimal_logprobs(ref_logp, reward, BETA)).mean(), color=MUTED, lw=0.9, ls=":")
+target_gap = kl(ipo_target, optimal_logprobs(ref_logp, reward, BETA)).mean()
+print(f"KL(IPO target || pi*) = {target_gap:.4f}")
+ax.axhline(target_gap, color=MUTED, lw=0.9, ls=":")
 ax.text(STEPS, 0.2, "distance between the two targets", ha="right", fontsize=8.3, color=INK_SECONDARY)
 ax.set_yscale("log")
 ax.set_xlabel("training step")

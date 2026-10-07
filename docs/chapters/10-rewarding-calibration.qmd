@@ -49,7 +49,7 @@ perfect calibration, and 24 of 31 benchmarks exceed the null's 95th percentile".
 base-rate mismatch, not a ranking problem": Jev's mean probability misses a benchmark's positive rate
 by a median of 0.125 while ranking well (median AUROC 0.905) [@guo2026justaskjev]. Calibration is a
 property of a model *on a distribution*, and one evaluation can show it holding in aggregate and
-failing within each slice.
+failing within most slices.
 
 ::: {.callout-tip title="Method card — RLCD (TypeSafe AI), public fields only"}
 | | |
@@ -77,8 +77,9 @@ description of how TypeSafe trains Jev, which has not been published.
 Start from RLVR: reward $r = \mathbb{1}[\text{correct}]$. If the policy can answer or abstain, abstaining
 earns 0 and answering earns $P(\text{correct})$ in expectation, so answering is better whenever that
 probability is above zero. A binary correctness reward never rewards "I'm not sure". Wu et al. put
-it exactly: standard RLVR "inadvertently incentivize[s] models as good test-takers rather than honest
-communicators, encouraging guessing whenever correctness probability exceeds zero"
+it exactly: standard RLVR paradigms "inadvertently incentivize models to function as 'good
+test-takers' rather than 'honest communicators', encouraging guessing whenever the probability of
+correctness exceeds zero"
 [@wu2025behaviorally]. And if the policy states a confidence alongside its answer, a correctness
 reward is indifferent to it: nothing in the gradient touches the confidence, so it stays wherever
 pretraining put it.
@@ -87,13 +88,13 @@ pretraining put it.
 
 Let the policy output an answer $a$ and a confidence $p$ that $a$ is correct, and let
 $o = \mathbb{1}[a \text{ correct}]$. Reward the confidence with a scoring rule $S(p, o)$. If $S$ is
-**proper**, then for a fixed answer whose true probability of being right is $q$, the expected score
-$\mathbb{E}_{o\sim\text{Bernoulli}(q)}[S(p,o)]$ is maximized by reporting $p = q$: honesty is optimal.
+**proper**, then for a fixed answer whose true probability of being right is $\eta$, the expected score
+$\mathbb{E}_{o\sim\text{Bernoulli}(\eta)}[S(p,o)]$ is maximized by reporting $p = \eta$: honesty is optimal.
 The negative Brier score $-(p-o)^2$ and the log score are both strictly proper. The theory of proper
 scoring rules is in
 [loss-functions-lab's decision-theory chapter](https://ioannisantoniadis.github.io/loss-functions-lab/chapters/08-decision-theory-proper-scoring.html)
 and in Gneiting and Raftery [@gneiting2007strictly]; for the Brier score the check is one line,
-$\mathbb{E}[-(p-o)^2] = -\big(q(1-p)^2 + (1-q)p^2\big)$, whose derivative in $p$ vanishes at $p = q$.
+$\mathbb{E}[-(p-o)^2] = -\big(\eta(1-p)^2 + (1-\eta)p^2\big)$, whose derivative in $p$ vanishes at $p = \eta$.
 
 Three points make this an RL problem rather than ordinary calibration.
 
@@ -104,22 +105,23 @@ is evaluative and the data self-generated, the two properties of the
 else's answers cannot express this.
 
 **The answer and the confidence interact.** Reward the confidence alone with the Brier score and the
-expected reward of an answer with success probability $q$, reported honestly, is $-q(1-q)$. That is
-highest at $q = 0$ or $q = 1$: the score rewards answers whose outcome is *predictable*, including
+expected reward of an answer with success probability $\eta$, reported honestly, is $-\eta(1-\eta)$. That is
+highest at $\eta = 0$ or $\eta = 1$: the score rewards answers whose outcome is *predictable*, including
 answers that are predictably wrong. Add the correctness term, $r = o - (p - o)^2$, and the expected
-reward of an honestly reported answer is $q - q(1-q) = q^2$, increasing in $q$: the policy should
+reward of an honestly reported answer is $\eta - \eta(1-\eta) = \eta^2$, increasing in $\eta$: the policy should
 give its best answer and its honest probability of being right.
 
 ::: {.callout-note title="Definition — Correctness plus a proper scoring rule"}
 $$
 r(a, p) = \mathbb{1}[a \text{ correct}] + S(p, \mathbb{1}[a\text{ correct}]),\qquad S(p,o) = -(p - o)^2,
 $$
-whose expected value for an answer with success probability $q$ is maximized by the best available
-answer and $p = q$ (expected value $q^2$ at the optimum).
+whose expected value for an answer with success probability $\eta$ is maximized by the best available
+answer and $p = \eta$ (expected value $\eta^2$ at the optimum).
 :::
 
-Damani et al. state the general condition: with a correctness term of weight $\lambda$, a proper
-scoring rule keeps both incentives as long as it is *bounded*, $S(p,1) - S(p,0) < \lambda$; an
+Damani et al. state the general condition: with a correctness term of weight $c_{\text{corr}}$ (their
+$\lambda$), a proper scoring rule keeps both incentives as long as it is *bounded*,
+$S(p,1) - S(p,0) < c_{\text{corr}}$; an
 unbounded rule like the log score can make "incorrect answers with zero confidence" optimal
 [@damani2025beyond].
 
@@ -183,8 +185,8 @@ the list reflects what was found by search as of 1 October 2026.
 
 - **RLCR** (Damani et al., 2025) has the model produce reasoning, an answer, an analysis of its
   uncertainty and a numerical confidence, and rewards it with
-  $\mathbb{1}_{y\equiv y^*} - (q - \mathbb{1}_{y\equiv y^*})^2$, correctness plus the Brier score, the
-  reward reconstructed above. The paper proves that this reward (or any bounded proper scoring rule
+  $\mathbb{1}_{y\equiv y^*} - (p - \mathbb{1}_{y\equiv y^*})^2$ (the paper writes $q$ for the confidence),
+  correctness plus the Brier score, the reward reconstructed above. The paper proves that this reward (or any bounded proper scoring rule
   added to correctness) yields answers that are both accurate and calibrated, and reports large
   calibration gains (ECE 0.37 → 0.03 on HotpotQA) with accuracy comparable to standard RL, including
   on held-out datasets where standard RL made calibration worse [@damani2025beyond].
@@ -206,7 +208,7 @@ the list reflects what was found by search as of 1 October 2026.
   $2\Pr(A{=}Y) - 1$ plus the Gini impurity $1 - \|p\|^2$. Both identities are short algebra on the
   Brier score, and the test suite checks them numerically (`tests/test_calibration.py`). The paper's
   conclusion is to score each rationale's own distribution, which removes the bonus. Its empirical
-  results are the authors' own, two days old at the time of writing.
+  results are the authors' own and had not been independently replicated as of 1 October 2026.
 
 ### A name collision
 

@@ -112,7 +112,7 @@ table.
 
 **A worked example: Math-Shepherd.** The paper trains a process reward model whose label for each
 reasoning step is the fraction of $N$ completions from that step that reach the correct answer, and
-then "employ[s it] to reinforce LLMs with step-by-step Proximal Policy Optimization" [@wang2024mathshepherd].
+then "employ[s it] to reinforce LLMs with step-by-step Proximal Policy Optimization" [@wang2023mathshepherd].
 *Signal*: a learned process reward, per step. *Sampling*: the current policy, as in PPO. *Weight*: PPO's
 clipped advantage, now with rewards at every step instead of only at the end. *Stability*: PPO's clip
 (and whatever KL the implementation uses, which the reader should check). *Credit*: step level, from a

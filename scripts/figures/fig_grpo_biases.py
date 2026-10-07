@@ -114,12 +114,18 @@ for agg, adv, ls, lab in (("seq_mean", "grpo", "-", "GRPO (1/|o| per response)")
                           ("constant", "dr_grpo", "--", "Dr. GRPO (constant normalizer)")):
     runs = np.array([run(agg, adv, s) for s in (0, 1, 2)])
     med = np.median(runs, 0)
+    print(f"{lab}: length at step 0 wrong {med[0, 0]:.2f} correct {med[0, 1]:.2f}; "
+          f"final wrong {med[-1, 0]:.2f} correct {med[-1, 1]:.2f}")
     ax.plot(steps, med[:, 0], color=CATEGORICAL[7], ls=ls, label=f"{lab}: wrong answers")
     ax.plot(steps, med[:, 1], color=FAMILY_COLOR["imitation"], ls=ls, label=f"{lab}: correct answers")
 ax.set_xlabel("training step")
 ax.set_ylabel("mean response length (tokens, exact)")
 ax.set_title("Per-response length normalization biases length")
 ax.legend(fontsize=7.8, loc="lower left")
+
+# Not plotted: the constant normalizer alone (std division kept), isolating the aggregation's effect.
+med = np.median([run("constant", "grpo", s) for s in (0, 1, 2)], 0)
+print(f"GRPO with a constant normalizer (std kept): final wrong {med[-1, 0]:.2f} correct {med[-1, 1]:.2f}")
 
 savefig(fig, "grpo_biases")
 a = np.array(pts["grpo"])

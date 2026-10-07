@@ -228,7 +228,7 @@ Textbook accounts often say that a baseline "reduces variance", full stop. The t
 check that claim, because the exact gradient is known. @fig-gradient-variance-by-baseline
 compares thousands of stochastic gradient estimates with it.
 
-![Relative mean squared error $\mathbb{E}\|\hat g - g\|^2/\|g\|^2$ of policy-gradient estimates against the exact gradient of $\mathbb{E}[r]$ (1,500 estimates per point). Left: at $\pi_{\text{ref}}$, with the reward shifted by a constant $c$; without a baseline the error grows with the square of the offset, while every baselined estimator is unaffected. Middle: at a good policy (85% correct), against the number of samples per prompt. Right: GAE's $\lambda$ with a critic that is close to, but not exactly, $V^\pi$; lowering $\lambda$ cuts variance and adds bias.](../images/gradient_variance_by_baseline.png){#fig-gradient-variance-by-baseline}
+![Relative mean squared error $\mathbb{E}\|\hat g - g\|^2/\|g\|^2$ of policy-gradient estimates against the exact gradient of $\mathbb{E}[r]$ (1,500 estimates per point). Left: at $\pi_{\text{ref}}$, with the reward shifted by a constant $c$; without a baseline the error grows with the square of the offset, while every baselined estimator is unaffected. Middle: at a better policy, $\pi^\star_{\beta=0.5}$ (64% correct on average), against the number of samples per prompt. Right: GAE's $\lambda$ with a critic that is close to, but not exactly, $V^\pi$; lowering $\lambda$ cuts variance and adds bias.](../images/gradient_variance_by_baseline.png){#fig-gradient-variance-by-baseline}
 
 The left panel holds the policy at $\pi_{\text{ref}}$ and adds a constant $c$ to every reward. The
 expected gradient is identical for every $c$. Without a baseline, the estimator's error is about
@@ -242,12 +242,13 @@ The same panel holds a surprise. At $c = 0$, the estimator *without* a baseline 
 error of all. With a 0/1 reward and a policy that is usually wrong, most samples have reward 0 and
 contribute nothing; zero happens to be close to the average reward, so it is already a decent
 baseline. A baseline estimated from a few other samples adds its own noise, and here that costs
-more than it saves. Once the policy is good (middle panel, 85% correct), the situation reverses:
-most rewards are now 1, zero is a poor baseline, and every baselined estimator beats plain
-REINFORCE at every group size. RLOO pays for estimating its baseline from only $G-1$ samples at
-very small $G$ and has nearly caught up with the exact per-prompt value $V(x)$ by $G = 16$. The exact
+more than it saves. Once the policy is better (middle panel, $\pi^\star_{\beta=0.5}$, 64% correct on average and
+85–95% on the two easiest prompts), the situation reverses: most rewards are now 1, zero is a
+poor baseline, and every baselined estimator beats plain REINFORCE from $G = 4$ on. RLOO pays for
+estimating its baseline from only $G-1$ samples: at $G = 2$ its one-sample baseline is noisy
+enough to make it slightly *worse* than no baseline, and it has nearly caught up with the exact per-prompt value $V(x)$ by $G = 16$. The exact
 per-token critic $V^\pi(s_t)$, the best a learned critic could be, is the best estimator at the
-good policy, but only slightly. In this task every prefix can still be completed correctly by the
+better policy, but only slightly. In this task every prefix can still be completed correctly by the
 last token, so knowing the prefix says little about the outcome, and a per-token critic has
 little to add over a per-prompt baseline. The general lesson is that **a baseline guarantees an
 unchanged expectation and invariance to the reward's offset; how much it reduces variance depends
